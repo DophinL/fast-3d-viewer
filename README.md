@@ -14,7 +14,7 @@ Fast 3D Viewer is designed for the moment after someone receives a model and bef
 - **Non-destructive local repair.** Remove invalid or duplicate faces, fill simple planar holes, regenerate normals, and optionally center geometry. The source is never overwritten.
 - **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to frame time, accelerate picking with a BVH, and lazy-load importers and exporters.
 - **A deliberate interface.** The warm, technical workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
-- **No upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser.
+- **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. A few CAD/BIM importers lazy-load version-pinned parser runtimes from jsDelivr; those requests do not contain model bytes.
 
 ## Try it
 
@@ -163,6 +163,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Importers should include a small license
 ## Security and privacy
 
 Files are processed locally by the published app. URL imports are fetched directly by the browser and therefore depend on the remote server's CORS policy. Review [SECURITY.md](SECURITY.md) for archive limits, untrusted-model guidance, and private reporting.
+
+STEP/IGES/BREP, Rhino 3DM, IFC, and upstream Draco compatibility paths may fetch their version-pinned parser runtime from jsDelivr on first use. The model remains in the browser, but a strict offline deployment should self-host those inherited runtimes before claiming zero network dependencies.
 
 ## License and attribution
 
