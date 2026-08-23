@@ -143,7 +143,7 @@ export class ViewerEngine {
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
     this.resize();
-    this.tick();
+    this.invalidate();
   }
 
   setTelemetryListener(listener: (telemetry: RendererTelemetry) => void): void {
@@ -375,8 +375,8 @@ export class ViewerEngine {
   };
 
   private handleDoubleClick = (): void => this.fitToView(true);
-  private handleControlStart = (): void => { this.forceContinuous = true; };
-  private handleControlEnd = (): void => { this.forceContinuous = this.settings.autoRotate; };
+  private handleControlStart = (): void => { this.forceContinuous = true; this.invalidate(); };
+  private handleControlEnd = (): void => { this.forceContinuous = this.settings.autoRotate; this.invalidate(); };
   private handleContextLost = (event: Event): void => { event.preventDefault(); this.forceContinuous = false; };
   private handleContextRestored = (): void => { this.applySettings(this.settings); this.invalidate(); };
 
@@ -393,11 +393,16 @@ export class ViewerEngine {
     this.invalidate();
   };
 
-  private invalidate = (): void => { this.invalidated = true; };
+  private invalidate = (): void => {
+    this.invalidated = true;
+    if (!this.animationFrame && !this.disposed) {
+      this.animationFrame = requestAnimationFrame(this.tick);
+    }
+  };
 
   private tick = (): void => {
+    this.animationFrame = 0;
     if (this.disposed) return;
-    this.animationFrame = requestAnimationFrame(this.tick);
     const now = performance.now();
     const delta = Math.min((now - this.lastTickAt) / 1000, 0.1);
     this.lastTickAt = now;
@@ -405,15 +410,17 @@ export class ViewerEngine {
       this.controls.update(delta);
       this.invalidated = true;
     }
-    if (!this.invalidated) return;
-    const start = performance.now();
-    this.renderer.render(this.scene, this.camera);
-    const frameTime = performance.now() - start;
-    this.invalidated = false;
-    this.frameSamples.push(frameTime);
-    if (this.frameSamples.length > 60) this.frameSamples.shift();
-    this.updateAdaptiveQuality(frameTime);
-    if (performance.now() - this.telemetryAt > 500) this.emitTelemetry();
+    if (this.invalidated) {
+      const start = performance.now();
+      this.renderer.render(this.scene, this.camera);
+      const frameTime = performance.now() - start;
+      this.invalidated = false;
+      this.frameSamples.push(frameTime);
+      if (this.frameSamples.length > 60) this.frameSamples.shift();
+      this.updateAdaptiveQuality(frameTime);
+      if (performance.now() - this.telemetryAt > 500) this.emitTelemetry();
+    }
+    if (this.forceContinuous) this.invalidate();
   };
 
   private updateAdaptiveQuality(frameTime: number): void {

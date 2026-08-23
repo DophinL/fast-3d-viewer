@@ -6,7 +6,7 @@ Fast 3D Viewer optimizes for low input latency and honest failure behavior. A un
 
 ### Render on demand
 
-The renderer invalidates when the camera, selection, scene, settings, animation, or viewport changes. Static scenes do not require a permanent 60 Hz render loop. Auto-rotation and animation deliberately keep frames active.
+The renderer invalidates when the camera, selection, scene, settings, animation, or viewport changes. Static scenes stop both GPU rendering and the request-animation-frame loop. Camera interaction and auto-rotation deliberately keep frames active.
 
 ### Adaptive resolution
 
@@ -62,7 +62,7 @@ These are engineering guardrails, not promises for every model:
 
 - Initial application JavaScript should remain below 350 kB uncompressed.
 - CAD and rarely used parsers must stay outside the initial chunk.
-- Static scenes should stop requesting frames.
+- Static scenes should stop requesting frames; interaction should reactivate the loop.
 - Interactive work should target a 16.7 ms frame on capable desktop hardware.
 - The viewport must remain operable when diagnostics are running.
 - Diagnostics above the safe triangle budget must report a limit instead of freezing the page.
@@ -79,4 +79,3 @@ CI enforces build success and behavior; bundle-size and model-corpus performance
 - cancellable worker jobs and transferable-buffer pooling;
 - optional mesh simplification with visible quality/error controls;
 - WebGPU evaluation after importer and fallback parity are proven.
-
