@@ -10,6 +10,7 @@ test('opens the calibration model, renders WebGL, and exposes diagnostics', asyn
   await expect(page.locator('canvas')).toBeVisible();
   await expect(page.getByRole('tab', { name: 'scene' })).toBeVisible();
   await page.getByRole('tab', { name: 'health' }).click();
+  await page.getByRole('button', { name: /Run topology scan/i }).click();
   await expect(page.getByText(/Topology checks passed|Open boundary edges/)).toBeVisible({ timeout: 10_000 });
   expect(errors).toEqual([]);
 });

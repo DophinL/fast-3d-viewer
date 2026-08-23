@@ -51,16 +51,11 @@ export class DiagnosticsService {
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
       const payloads = data.payloads as GeometryPayload[];
       const transfers: Transferable[] = [];
-      // Copy before transferring so a second diagnostic pass can be created from the scene.
-      const cloned = payloads.map((payload) => {
-        const positions = payload.positions.slice();
-        const indices = payload.indices?.slice() ?? null;
-        const matrix = payload.matrix.slice();
-        transfers.push(positions.buffer, matrix.buffer);
-        if (indices) transfers.push(indices.buffer);
-        return { ...payload, positions, indices, matrix };
-      });
-      worker.postMessage({ id, type, ...data, payloads: cloned }, transfers);
+      for (const payload of payloads) {
+        transfers.push(payload.positions.buffer, payload.matrix.buffer);
+        if (payload.indices) transfers.push(payload.indices.buffer);
+      }
+      worker.postMessage({ id, type, ...data, payloads }, transfers);
     });
   }
 

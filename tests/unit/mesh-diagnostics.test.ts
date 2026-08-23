@@ -58,6 +58,20 @@ describe('mesh diagnostics worker algorithms', () => {
     expect(result.issues[0]?.code).toBe('scan-limit');
   });
 
+  it('adds absolute volume across closed shells with opposite winding', () => {
+    const tetra = (offset: number, reverse: boolean) => {
+      const vertices = [
+        [offset, 0, 0], [offset + 1, 0, 0], [offset, 1, 0], [offset, 0, 1],
+      ];
+      const faces = [[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]];
+      return faces.flatMap((face) => (reverse ? [...face].reverse() : face).flatMap((index) => vertices[index]!));
+    };
+    const result = analyze([payload([...tetra(0, false), ...tetra(3, true)])], false);
+
+    expect(result.watertight).toBe(true);
+    expect(result.signedVolume).toBeCloseTo(1 / 3, 6);
+  });
+
   it('honors degenerate and duplicate removal options', () => {
     const source = payload([
       0, 0, 0, 1, 0, 0, 0, 1, 0,

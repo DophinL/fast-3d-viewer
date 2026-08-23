@@ -80,7 +80,7 @@ function Section({ title, icon, children, initial = true }: { title: string; ico
       <button type="button" className="inspector-section__heading" onClick={() => setOpen((value) => !value)}>
         <span>{icon}{title}</span><ChevronDown />
       </button>
-      <div className="inspector-section__collapsible"><div>{children}</div></div>
+      <div className="inspector-section__collapsible">{open && <div>{children}</div>}</div>
     </section>
   );
 }

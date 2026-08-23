@@ -8,6 +8,7 @@ test('keeps the repair result visible after replacing the active model', async (
   });
 
   await page.getByRole('tab', { name: 'health' }).click();
+  await page.getByRole('button', { name: /Run topology scan/i }).click();
   await expect(page.getByText(/Topology checks passed|Open boundary edges/)).toBeVisible({
     timeout: 10_000,
   });

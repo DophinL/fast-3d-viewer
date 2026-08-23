@@ -12,9 +12,9 @@ Fast 3D Viewer is designed for the moment after someone receives a model and bef
 - **A workbench, not a black box.** Inspect triangles, vertices, materials, textures, bones, animations, dimensions, estimated GPU memory, draw calls, parser time, and live renderer telemetry.
 - **Mesh health that is actionable.** Scan welded topology for boundaries, non-manifold edges, reversed adjacency, degenerate faces, duplicates, isolated faces, surface area, and closed volume.
 - **Non-destructive local repair.** Remove invalid or duplicate faces, fill simple planar holes, regenerate normals, and optionally center geometry. The source is never overwritten.
-- **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to frame time, accelerate picking with a BVH, and lazy-load importers and exporters.
+- **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to measured frame cadence, avoid synchronous acceleration builds during open, and lazy-load importers and exporters.
 - **A deliberate interface.** The warm, technical workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
-- **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. A few CAD/BIM importers lazy-load version-pinned parser runtimes from jsDelivr; those requests do not contain model bytes.
+- **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD/BIM parser runtimes are version-pinned and served from the same origin under a strict script policy.
 
 ## Try it
 
@@ -164,7 +164,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Importers should include a small license
 
 Files are processed locally by the published app. URL imports are fetched directly by the browser and therefore depend on the remote server's CORS policy. Review [SECURITY.md](SECURITY.md) for archive limits, untrusted-model guidance, and private reporting.
 
-STEP/IGES/BREP, Rhino 3DM, IFC, and upstream Draco compatibility paths may fetch their version-pinned parser runtime from jsDelivr on first use. The model remains in the browser, but a strict offline deployment should self-host those inherited runtimes before claiming zero network dependencies.
+STEP/IGES/BREP, Rhino 3DM, IFC, and upstream Draco compatibility paths use the version-pinned runtime files in `public/runtime`. `SHA256SUMS` records the reviewed payloads, and the browser policy blocks third-party executable code. Remote URL import still contacts the model host selected by the user.
 
 ## License and attribution
 

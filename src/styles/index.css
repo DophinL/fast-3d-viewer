@@ -249,6 +249,7 @@
   .scene-node:hover .scene-node__visibility, .scene-node__visibility:focus-visible { opacity: 1; }
   .scene-node__visibility svg, .scene-node__kind { height: .68rem; width: .68rem; }
   .scene-node__kind { color: var(--accent); }
+  .scene-tree__limit { color: var(--ink-3); font-size: .58rem; padding: .5rem .75rem; }
 
   .health-verdict { align-items: center; background: var(--sage-soft); border-bottom: 1px solid color-mix(in oklch, var(--sage) 22%, transparent); display: grid; gap: .55rem; grid-template-columns: 2rem 1fr; padding: .75rem .85rem; }
   .health-verdict > div { align-items: center; background: var(--sage); border-radius: 50%; color: var(--paper-0); display: flex; height: 2rem; justify-content: center; grid-row: 1 / 3; width: 2rem; }

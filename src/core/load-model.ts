@@ -33,16 +33,36 @@ function createPackageManager(bundle: FileBundle): { manager: LoadingManager; cl
   const manager = new LoadingManager();
   const objectUrls = new Map<string, string>();
   const entriesByPath = new Map(bundle.entries.map((entry) => [entry.normalizedPath.toLowerCase(), entry]));
-  const entriesByName = new Map(bundle.entries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const entriesByName = new Map<string, typeof bundle.entries>();
+  for (const entry of bundle.entries) {
+    const key = entry.name.toLowerCase();
+    entriesByName.set(key, [...(entriesByName.get(key) ?? []), entry]);
+  }
   manager.setURLModifier((requestedUrl) => {
-    if (/^(?:data:|blob:|https?:)/i.test(requestedUrl)) return requestedUrl;
+    if (/^(?:data:|blob:)/i.test(requestedUrl)) return requestedUrl;
+    if (/^https?:/i.test(requestedUrl)) {
+      if (!bundle.remoteBaseUrl) throw new Error(`Blocked external resource in a local model: ${requestedUrl}`);
+      const target = new URL(requestedUrl);
+      const source = new URL(bundle.remoteBaseUrl);
+      if (target.origin !== source.origin) throw new Error(`Blocked cross-origin model resource: ${target.origin}`);
+      return target.toString();
+    }
     let decoded = requestedUrl;
     try { decoded = decodeURIComponent(requestedUrl); } catch { /* Keep the original lookup key. */ }
     const normalized = decoded.split(/[?#]/, 1)[0]!.replaceAll('\\', '/').replace(/^\.\//, '').replace(/^\//, '');
     const name = normalized.split('/').pop()?.toLowerCase() ?? normalized.toLowerCase();
-    const entry = entriesByPath.get(normalized.toLowerCase()) ?? entriesByName.get(name);
+    const exact = entriesByPath.get(normalized.toLowerCase());
+    const namedCandidates = entriesByName.get(name) ?? [];
+    if (!exact && namedCandidates.length > 1) {
+      throw new Error(`Ambiguous companion file "${name}" exists in multiple folders. Keep its relative path in the model package.`);
+    }
+    const entry = exact ?? namedCandidates[0];
     if (!entry) {
-      return bundle.remoteBaseUrl ? new URL(requestedUrl, bundle.remoteBaseUrl).toString() : requestedUrl;
+      if (!bundle.remoteBaseUrl) throw new Error(`Missing local companion file: ${requestedUrl}`);
+      const target = new URL(requestedUrl, bundle.remoteBaseUrl);
+      const source = new URL(bundle.remoteBaseUrl);
+      if (target.origin !== source.origin) throw new Error(`Blocked cross-origin model resource: ${target.origin}`);
+      return target.toString();
     }
     let objectUrl = objectUrls.get(entry.normalizedPath);
     if (!objectUrl) {
@@ -125,14 +145,20 @@ async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Pro
   }
   if (['ldr', 'mpd', 'dat'].includes(extension)) {
     const { LDrawLoader } = await import('three/examples/jsm/loaders/LDrawLoader.js');
-    const text = await readText(file);
-    const parsed = await new Promise<Group>((resolve, reject) => new LDrawLoader().parse(text, resolve, reject));
-    return { root: parsed, animations: [], parser: 'Fast native loader' };
+    const resources = createPackageManager(bundle);
+    try {
+      const text = await readText(file);
+      const parsed = await new Promise<Group>((resolve, reject) => new LDrawLoader(resources.manager).parse(text, resolve, reject));
+      return { root: parsed, animations: [], parser: 'Fast native loader', cleanup: resources.cleanup };
+    } catch (error) {
+      resources.cleanup();
+      throw error;
+    }
   }
   if (extension === 'xyz') {
     const { XYZLoader } = await import('three/examples/jsm/loaders/XYZLoader.js');
     const text = await readText(file);
-    const geometry = await new Promise<BufferGeometry>((resolve) => new XYZLoader().parse(text, resolve));
+    const geometry = (new XYZLoader() as unknown as { parse: (source: string) => BufferGeometry }).parse(text);
     return { root: new Points(geometry, new PointsMaterial({ size: 0.015, vertexColors: Boolean(geometry.getAttribute('color')), color: 0x20262b })), animations: [], parser: 'Fast native loader' };
   }
   if (extension === 'pcd') {
@@ -147,7 +173,19 @@ async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Pro
   }
   if (extension === 'kmz') {
     const { KMZLoader } = await import('three/examples/jsm/loaders/KMZLoader.js');
-    const result = new KMZLoader().parse(await readBuffer(file));
+    const input = await readBuffer(file);
+    const { unzipSync } = await import('fflate');
+    const contents = unzipSync(new Uint8Array(input), {
+      filter: (entry) => {
+        if (entry.originalSize > 256 * 1024 * 1024) throw new Error(`KMZ entry ${entry.name} exceeds the 256 MB limit.`);
+        return /\.(?:dae|kml)$/i.test(entry.name);
+      },
+    });
+    for (const [name, bytes] of Object.entries(contents)) {
+      const source = new TextDecoder().decode(bytes);
+      if (/(?:https?:)?\/\//i.test(source)) throw new Error(`Blocked an external resource reference in local KMZ entry ${name}.`);
+    }
+    const result = new KMZLoader().parse(input);
     return { root: result.scene, animations: [], parser: 'Fast native loader' };
   }
   if (['gcode', 'gco', 'nc'].includes(extension)) {
@@ -209,6 +247,7 @@ export async function loadModel(bundle: FileBundle, onProgress: ProgressCallback
       parsed = await parseExtra(bundle, onProgress);
     } catch (error) {
       if (!['gltf', 'glb', 'fbx', 'dae'].includes(bundle.mainFile.extension)) throw error;
+      if (error instanceof Error && /^(?:Blocked|Missing local companion|Ambiguous companion)/.test(error.message)) throw error;
       update(onProgress, 'parsing', 0.38, 'Retrying with the compatibility engine');
       parsed = await parseUpstream(bundle, onProgress);
     }

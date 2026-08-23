@@ -50,6 +50,8 @@ export function App() {
   const { viewportRef, canvasRef, engineRef, telemetry, selection, rendererError, applySettings } = useViewerEngine();
   const diagnosticsService = useRef(new DiagnosticsService());
   const activeAssetRef = useRef<LoadedAsset | null>(null);
+  const operationGeneration = useRef(0);
+  const activeLoadAbort = useRef<AbortController | null>(null);
   const [asset, setAsset] = useState<LoadedAsset | null>(null);
   const [progress, setProgress] = useState<LoadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export function App() {
 
   useEffect(() => () => {
     diagnosticsService.current.dispose();
+    activeLoadAbort.current?.abort();
     activeAssetRef.current?.cleanup();
   }, []);
 
@@ -88,31 +91,49 @@ export function App() {
     }
   }, []);
 
-  const commitAsset = useCallback((next: LoadedAsset, completedRepair: RepairResult | null = null) => {
+  const commitAsset = useCallback((next: LoadedAsset, completedRepair: RepairResult | null = null, completedDiagnostics: MeshDiagnostics | null = null) => {
     engineRef.current?.setModel(next.root, next.animations);
     activeAssetRef.current?.cleanup();
     activeAssetRef.current = next;
     setAsset(next);
-    setDiagnostics(null);
+    setDiagnostics(completedDiagnostics);
     setRepairResult(completedRepair);
     setAnimationPlaying(false);
     setInspectorOpen(true);
-    window.setTimeout(() => void runDiagnostics(next), 180);
-  }, [engineRef, runDiagnostics]);
+  }, [engineRef]);
 
-  const loadBundle = useCallback(async (bundlePromise: ReturnType<typeof createFileBundle>) => {
+  const loadBundle = useCallback(async (bundlePromise: ReturnType<typeof createFileBundle>, controller: AbortController | null = null) => {
+    if (activeLoadAbort.current !== controller) activeLoadAbort.current?.abort();
+    activeLoadAbort.current = controller;
+    const generation = ++operationGeneration.current;
     setError(null);
     setProgress({ phase: 'reading', progress: 0.03, label: 'Preparing model package' });
     try {
       const bundle = await bundlePromise;
-      const next = await loadModel(bundle, setProgress);
+      if (generation !== operationGeneration.current) return;
+      const next = await loadModel(bundle, (nextProgress) => {
+        if (generation === operationGeneration.current) setProgress(nextProgress);
+      });
+      if (generation !== operationGeneration.current) {
+        next.cleanup();
+        return;
+      }
       commitAsset(next);
     } catch (reason) {
+      if (generation !== operationGeneration.current) return;
+      if (activeLoadAbort.current === controller) activeLoadAbort.current = null;
+      if (reason instanceof DOMException && reason.name === 'AbortError') {
+        setProgress(null);
+        return;
+      }
       setError(reason instanceof Error ? reason.message : String(reason));
       setProgress(null);
       return;
     }
-    window.setTimeout(() => setProgress(null), 260);
+    window.setTimeout(() => {
+      if (generation === operationGeneration.current) setProgress(null);
+    }, 260);
+    if (activeLoadAbort.current === controller) activeLoadAbort.current = null;
   }, [commitAsset]);
 
   const openFiles = useCallback((files: File[]) => {
@@ -128,12 +149,14 @@ export function App() {
       setError('3D rendering is unavailable in this browser session. Enable hardware acceleration before opening a model.');
       return;
     }
-    void loadBundle(fetchRemoteBundle(url));
+    const controller = new AbortController();
+    void loadBundle(fetchRemoteBundle(url, controller.signal), controller);
   }, [loadBundle, rendererError]);
 
   const repair = useCallback(async (options: RepairOptions) => {
     const current = activeAssetRef.current;
     if (!current) return;
+    const generation = ++operationGeneration.current;
     setRepairBusy(true);
     setError(null);
     try {
@@ -141,6 +164,12 @@ export function App() {
       if (geometry.scanLimited) throw new Error('This mesh is above the interactive repair limit. Isolate or reduce it first.');
       const result = await diagnosticsService.current.repair(geometry.payloads, options);
       const root = createRepairedObject(result, `${current.stats.fileName.replace(/\.[^.]+$/, '')} repaired`);
+      const repairedGeometry = collectGeometryPayloads(root);
+      const repairedDiagnostics = await diagnosticsService.current.analyze(repairedGeometry.payloads, repairedGeometry.scanLimited);
+      if (result.filledHoles > 0 && (repairedDiagnostics.nonManifoldEdges > 0 || repairedDiagnostics.inconsistentEdges > 0)) {
+        disposeObject(root);
+        throw new Error('The proposed hole fill did not pass the post-repair topology check, so no working copy was created.');
+      }
       const sourceName = `${current.stats.fileName.replace(/\.[^.]+$/, '')}-repaired.stl`;
       const serialized = await exportModel(root, sourceName, {
         format: 'stl',
@@ -160,8 +189,13 @@ export function App() {
         parser: 'Fast native loader',
         cleanup: () => disposeObject(root),
       };
-      commitAsset(next, result);
+      if (generation !== operationGeneration.current || activeAssetRef.current !== current) {
+        next.cleanup();
+        return;
+      }
+      commitAsset(next, result, repairedDiagnostics);
     } catch (reason) {
+      if (generation !== operationGeneration.current || activeAssetRef.current !== current) return;
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setRepairBusy(false);
@@ -185,8 +219,12 @@ export function App() {
 
   const snapshot = () => {
     if (!asset) return;
-    const data = engineRef.current?.snapshot(2, false);
-    if (data) downloadDataUrl(data, `${asset.stats.fileName.replace(/\.[^.]+$/, '')}-view.png`);
+    try {
+      const data = engineRef.current?.snapshot(2, false);
+      if (data) downloadDataUrl(data, `${asset.stats.fileName.replace(/\.[^.]+$/, '')}-view.png`);
+    } catch (reason) {
+      setError(reason instanceof Error ? `Could not create the PNG snapshot: ${reason.message}` : 'Could not create the PNG snapshot.');
+    }
   };
 
   const fullscreen = async () => {
@@ -196,12 +234,16 @@ export function App() {
   };
 
   const reset = () => {
+    operationGeneration.current += 1;
+    activeLoadAbort.current?.abort();
+    activeLoadAbort.current = null;
     activeAssetRef.current?.cleanup();
     activeAssetRef.current = null;
     engineRef.current?.clearModel();
     setAsset(null);
     setDiagnostics(null);
     setRepairResult(null);
+    setProgress(null);
     setAnimationPlaying(false);
     setError(null);
   };

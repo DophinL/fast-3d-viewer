@@ -43,6 +43,50 @@ test('reports a recoverable error for a package without a model', async ({ page 
   await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
 });
 
+test('opens an XYZ point cloud without leaving the loading state stuck', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: 'points.xyz',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('0 0 0\n1 0 0\n0 1 0\n'),
+  });
+
+  await expect(page.locator('.viewport-badge')).toContainText('points.xyz', { timeout: 20_000 });
+  await expect(page.locator('canvas')).toBeVisible();
+});
+
+test('blocks absolute network companions declared by a local model', async ({ page }) => {
+  let trackerRequested = false;
+  await page.route('https://tracker.example/**', async (route) => {
+    trackerRequested = true;
+    await route.abort();
+  });
+  await page.goto('/');
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: 'private.gltf',
+    mimeType: 'model/gltf+json',
+    buffer: Buffer.from(JSON.stringify({
+      asset: { version: '2.0' },
+      buffers: [{ uri: 'https://tracker.example/model-opened.bin', byteLength: 42 }],
+      bufferViews: [
+        { buffer: 0, byteOffset: 0, byteLength: 36, target: 34962 },
+        { buffer: 0, byteOffset: 36, byteLength: 6, target: 34963 },
+      ],
+      accessors: [
+        { bufferView: 0, componentType: 5126, count: 3, type: 'VEC3' },
+        { bufferView: 1, componentType: 5123, count: 3, type: 'SCALAR' },
+      ],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1 }] }],
+      nodes: [{ mesh: 0 }],
+      scenes: [{ nodes: [0] }],
+      scene: 0,
+    })),
+  });
+
+  await expect(page.getByRole('alert')).toContainText('Blocked external resource', { timeout: 20_000 });
+  expect(trackerRequested).toBe(false);
+});
+
 test('shows the registered capability matrix without loading a model', async ({ page }) => {
   await page.goto('/');
   const formatsButton = page.getByRole('button', { name: /Formats 27/i });
@@ -115,4 +159,23 @@ test('keeps URL import recoverable after protocol and HTTP failures', async ({ p
   await page.getByRole('button', { name: 'Load model' }).click();
   await expect(page.getByRole('alert')).toContainText('HTTP 503');
   await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
+});
+
+test('does not let a slower previous load replace the latest model', async ({ page }) => {
+  const stl = 'solid race\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid race\n';
+  await page.route('https://fixtures.example/race/**', async (route) => {
+    if (route.request().url().endsWith('slow.stl')) await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.fulfill({ body: stl, contentType: 'model/stl' });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open URL' }).click();
+  const input = page.getByLabel('Public model URL');
+  await input.fill('https://fixtures.example/race/slow.stl');
+  await page.getByRole('button', { name: 'Load model' }).click();
+  await input.fill('https://fixtures.example/race/latest.stl');
+  await page.getByRole('button', { name: 'Load model' }).click();
+
+  await expect(page.locator('.viewport-badge')).toContainText('latest.stl', { timeout: 20_000 });
+  await page.waitForTimeout(800);
+  await expect(page.locator('.viewport-badge')).toContainText('latest.stl');
 });

@@ -104,6 +104,11 @@ export class ColorToMaterialConverter
 
 let occtWorkerUrl = null;
 
+function RuntimeUrl (path)
+{
+	return new URL ('runtime/' + path, document.baseURI).toString ();
+}
+
 export function CreateOcctWorker (worker)
 {
 	return new Promise ((resolve, reject) => {
@@ -112,33 +117,23 @@ export function CreateOcctWorker (worker)
 			return;
 		}
 
-		let baseUrl = 'https://cdn.jsdelivr.net/npm/occt-import-js@0.0.22/dist/';
-		fetch (baseUrl + 'occt-import-js-worker.js')
-			.then ((response) => {
-				if (!response.ok) {
-					return reject ();
-				}
-				return response.text ();
-			})
-			.then ((workerScript) => {
-				workerScript = workerScript.replace ('occt-import-js.js', baseUrl + 'occt-import-js.js');
-				workerScript = workerScript.replace ('return path', 'return \'' + baseUrl + 'occt-import-js.wasm\'');
-				let blob = new Blob ([workerScript], { type : 'text/javascript' });
-				occtWorkerUrl = URL.createObjectURL (blob);
-				return resolve (new Worker (occtWorkerUrl));
-			})
-			.catch (reject);
+		occtWorkerUrl = RuntimeUrl ('occt/occt-import-js-worker.js');
+		try {
+			resolve (new Worker (occtWorkerUrl));
+		} catch (error) {
+			reject (error);
+		}
 	});
 }
 
 export function LoadExternalLibrary (libraryName)
 {
 	if (libraryName === 'rhino3dm') {
-		return LoadExternalLibraryFromUrl ('https://cdn.jsdelivr.net/npm/rhino3dm@8.17.0/rhino3dm.min.js');
+		return LoadExternalLibraryFromUrl (RuntimeUrl ('rhino3dm/rhino3dm.min.js'));
 	} else if (libraryName === 'webifc') {
-		return LoadExternalLibraryFromUrl ('https://cdn.jsdelivr.net/npm/web-ifc@0.0.68/web-ifc-api-iife.js');
+		return LoadExternalLibraryFromUrl (RuntimeUrl ('web-ifc/web-ifc-api-iife.js'));
 	} else if (libraryName === 'draco3d') {
-		return LoadExternalLibraryFromUrl ('https://cdn.jsdelivr.net/npm/draco3d@1.5.7/draco_decoder_nodejs.min.js');
+		return LoadExternalLibraryFromUrl (RuntimeUrl ('draco3d/draco_decoder_nodejs.js'));
 	} else {
 		return null;
 	}

@@ -2,9 +2,12 @@ import { ChevronDown, ChevronRight, Eye, EyeOff, Shapes } from 'lucide-react';
 import { useMemo, useState, type CSSProperties } from 'react';
 import type { Object3D } from 'three';
 
+const MAX_VISIBLE_CHILDREN = 250;
+
 function SceneNode({ object, depth, onChange }: { object: Object3D; depth: number; onChange: (object: Object3D, visible: boolean) => void }) {
   const [expanded, setExpanded] = useState(depth < 1);
   const children = object.children.filter((child) => child.type !== 'Bone');
+  const visibleChildren = children.slice(0, MAX_VISIBLE_CHILDREN);
   const hasChildren = children.length > 0;
   return (
     <li>
@@ -18,7 +21,12 @@ function SceneNode({ object, depth, onChange }: { object: Object3D; depth: numbe
           {object.visible ? <Eye /> : <EyeOff />}
         </button>
       </div>
-      {hasChildren && expanded && <ul>{children.map((child) => <SceneNode key={child.uuid} object={child} depth={depth + 1} onChange={onChange} />)}</ul>}
+      {hasChildren && expanded && (
+        <ul>
+          {visibleChildren.map((child) => <SceneNode key={child.uuid} object={child} depth={depth + 1} onChange={onChange} />)}
+          {children.length > MAX_VISIBLE_CHILDREN && <li className="scene-tree__limit">{children.length - MAX_VISIBLE_CHILDREN} more objects hidden at this level</li>}
+        </ul>
+      )}
     </li>
   );
 }

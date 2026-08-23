@@ -11,7 +11,7 @@ All notable changes are documented here. The project follows semantic versioning
 - 27 registered format families spanning web, mesh, print, CAD, BIM, point cloud, scene, and toolpath data.
 - Lazy fast-path loaders plus the vendored Online3DViewer import backend.
 - Animated glTF/GLB, FBX, and COLLADA fast paths with companion resolution and a compatibility fallback.
-- Render-on-demand, adaptive device pixel ratio, BVH picking, five render modes, standard views, screenshots, and live telemetry.
+- Render-on-demand, adaptive device pixel ratio, five render modes, standard views, bounded screenshots, and live telemetry.
 - Play/pause control for retained model animation clips.
 - Scene, geometry, material, animation, dimension, GPU memory, and draw-call inspection.
 - Worker-based topology diagnosis and conservative mesh repair.
@@ -23,6 +23,8 @@ All notable changes are documented here. The project follows semantic versioning
 
 - Static scenes now stop scheduling animation frames until interaction resumes.
 - Draco decoding for the direct glTF path is served from the same static origin.
+- CAD, BIM, Rhino, and fallback Draco runtimes are version-pinned and served from the same origin with distributed licenses and payload hashes.
+- Full topology scans now require an explicit user action and use a lower interactive memory budget.
 - GitHub Pages deploys only after unit, build, and production-browser gates pass.
 
 ### Fixed
@@ -33,6 +35,8 @@ All notable changes are documented here. The project follows semantic versioning
 - Resolved remote glTF companions against the source URL and bounded ZIP paths, file counts, and expanded bytes.
 - Rejected empty geometry as unhealthy, honored the degenerate-face repair option, and covered topology repair branches.
 - Restored source materials before disposal and removed transient display-material leaks.
+- Blocked outbound companions in local models, bounded remote downloads, and prevented stale load or repair operations from replacing the active asset.
+- Corrected XYZ loading, multi-material draw-call estimates, orthographic framing, topology validity criteria, and post-repair validation.
 
 ### Known limitations
 

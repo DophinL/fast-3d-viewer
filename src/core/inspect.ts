@@ -15,6 +15,9 @@ type InspectableObject = Object3D & {
   isLine?: boolean;
   isMesh?: boolean;
   isPoints?: boolean;
+  isInstancedMesh?: boolean;
+  isSkinnedMesh?: boolean;
+  morphTargetInfluences?: number[];
   geometry?: BufferGeometry;
   material?: Material | Material[];
 };
@@ -56,6 +59,7 @@ export function inspectAsset(
   let vertices = 0;
   let triangles = 0;
   let bones = 0;
+  let drawCalls = 0;
   let hasNormals = false;
   let hasTangents = false;
   let hasUV = false;
@@ -73,6 +77,8 @@ export function inspectAsset(
     if (object.isLine) lines += 1;
 
     const geometry = object.geometry;
+    if (object.isMesh) drawCalls += Math.max(geometry.groups.length, 1);
+    else if (object.isPoints || object.isLine) drawCalls += 1;
     const position = geometry.getAttribute('position');
     const index = geometry.getIndex();
     vertices += position?.count ?? 0;
@@ -120,7 +126,7 @@ export function inspectAsset(
     textures: textures.size,
     bones,
     animations: animationCount,
-    drawCalls: meshes + points + lines,
+    drawCalls,
     dimensions: { x: size.x, y: size.y, z: size.z, diagonal: size.length() },
     hasNormals,
     hasTangents,
@@ -167,18 +173,23 @@ export function buildAssetIssues(stats: AssetStats): AssetIssue[] {
   return issues;
 }
 
-export function collectGeometryPayloads(root: Object3D, triangleLimit = 1_500_000): { payloads: GeometryPayload[]; scanLimited: boolean; triangleCount: number } {
+export function collectGeometryPayloads(root: Object3D, triangleLimit = 500_000): { payloads: GeometryPayload[]; scanLimited: boolean; triangleCount: number } {
   const payloads: GeometryPayload[] = [];
   let triangleCount = 0;
+  let copiedValues = 0;
   root.updateMatrixWorld(true);
   root.traverse((child) => {
     const object = child as InspectableObject;
     if (!object.isMesh || !object.geometry) return;
+    if (object.isInstancedMesh || object.isSkinnedMesh || object.morphTargetInfluences?.some((weight) => weight !== 0)) {
+      throw new Error('Topology scan is disabled for instanced, skinned, or actively morphed meshes because a static triangle copy would be inaccurate.');
+    }
     const position = object.geometry.getAttribute('position') as BufferAttribute | undefined;
     if (!position) return;
     const index = object.geometry.getIndex();
     triangleCount += Math.floor((index?.count ?? position.count) / 3);
-    if (triangleCount > triangleLimit) return;
+    copiedValues += position.count * 3 + (index?.count ?? 0);
+    if (triangleCount > triangleLimit || copiedValues > 32_000_000) return;
     const positions = new Float32Array(position.count * 3);
     for (let index = 0; index < position.count; index += 1) {
       positions[index * 3] = position.getX(index);
@@ -195,7 +206,8 @@ export function collectGeometryPayloads(root: Object3D, triangleLimit = 1_500_00
       matrix: new Float32Array((object.matrixWorld ?? new Matrix4()).elements),
     });
   });
-  return { payloads: triangleCount > triangleLimit ? [] : payloads, scanLimited: triangleCount > triangleLimit, triangleCount };
+  const scanLimited = triangleCount > triangleLimit || copiedValues > 32_000_000;
+  return { payloads: scanLimited ? [] : payloads, scanLimited, triangleCount };
 }
 
 export function disposeObject(root: Object3D): void {

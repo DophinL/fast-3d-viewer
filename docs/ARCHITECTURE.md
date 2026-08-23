@@ -36,7 +36,7 @@ The vendored backend currently resolves several companion types by basename. Pac
 
 The production build copies Three.js Draco decoder assets into `dist/draco`. Compressed glTF decoding therefore stays on the same static origin and does not depend on a third-party decoder CDN.
 
-The inherited CAD/BIM adapter still lazy-loads version-pinned OpenCascade, Rhino, IFC, and fallback Draco runtimes from jsDelivr. This preserves upstream coverage without placing those large kernels in the initial page load. It does not upload model bytes, but it is a network dependency and must be self-hosted for an air-gapped deployment.
+The inherited CAD/BIM adapter lazy-loads version-pinned OpenCascade, Rhino, IFC, and fallback Draco runtimes from `public/runtime` on the application origin. This preserves upstream coverage without placing those large kernels in the initial page load. Runtime hashes and license notices ship alongside those files, while the Content Security Policy blocks third-party scripts and workers.
 
 ## Loader ownership
 
@@ -55,7 +55,7 @@ Importer output is normalized to `Object3D`. Format semantics that do not exist 
 - camera, orbit controls, lights, helpers, and environment;
 - render invalidation and frame scheduling;
 - adaptive device pixel ratio;
-- BVH raycast setup and selection;
+- selection and bounded, render-on-demand camera interaction;
 - animation mixer updates;
 - display modes and temporary materials;
 - telemetry and cleanup.

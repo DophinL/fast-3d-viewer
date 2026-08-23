@@ -22,18 +22,8 @@ export default defineConfig({
   plugins: [react(), localDracoDecoders()],
   build: {
     target: 'es2022',
-    sourcemap: true,
+    sourcemap: false,
     chunkSizeWarningLimit: 900,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('vendor/online3dviewer/source/engine')) return 'cad-engine';
-          if (id.includes('three/examples/jsm/loaders')) return 'extra-loaders';
-          if (id.includes('three')) return 'three-core';
-          return undefined;
-        },
-      },
-    },
   },
   worker: { format: 'es' },
 });

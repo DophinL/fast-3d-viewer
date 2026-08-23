@@ -33,18 +33,8 @@ import {
   type AnimationClip,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import type { RendererTelemetry, ViewerSettings } from '../core/types';
 import { DEFAULT_VIEWER_SETTINGS } from '../core/settings';
-
-declare module 'three' {
-  interface BufferGeometry {
-    computeBoundsTree: typeof computeBoundsTree;
-    disposeBoundsTree: typeof disposeBoundsTree;
-  }
-}
-
-Mesh.prototype.raycast = acceleratedRaycast;
 
 type MaterialOwner = Object3D & { isMesh?: boolean; material?: Material | Material[] };
 
@@ -73,13 +63,14 @@ export class ViewerEngine {
   private boundsHelper: Box3Helper | null = null;
   private selectionHelper: Box3Helper | null = null;
   private originalMaterials = new Map<string, Material | Material[]>();
-  private wireframeMaterials = new Map<string, Material | Material[]>();
+  private wireframeMaterials = new Map<string, Material>();
   private readonly normalMaterial = new MeshNormalMaterial({ side: DoubleSide });
   private readonly matcapMaterial = new MeshMatcapMaterial({ color: 0xc5bdac, flatShading: false, side: DoubleSide });
   private readonly xrayMaterial = new MeshStandardMaterial({ color: 0xc0c5c2, transparent: true, opacity: 0.28, depthWrite: false, side: DoubleSide });
   private settings = { ...DEFAULT_VIEWER_SETTINGS };
   private camera: PerspectiveCamera | OrthographicCamera = this.perspective;
   private animationFrame = 0;
+  private fitAnimationFrame = 0;
   private invalidated = true;
   private disposed = false;
   private forceContinuous = false;
@@ -160,10 +151,6 @@ export class ViewerEngine {
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      const geometry = mesh.geometry;
-      if (geometry && !geometry.boundsTree && (geometry.index?.count ?? geometry.getAttribute('position')?.count ?? 0) < 3_000_000) {
-        try { geometry.computeBoundsTree(); } catch { /* Unsupported interleaved data keeps default raycast. */ }
-      }
       this.originalMaterials.set(mesh.uuid, mesh.material);
     });
     this.fitToView(false);
@@ -171,6 +158,8 @@ export class ViewerEngine {
   }
 
   clearModel(): void {
+    cancelAnimationFrame(this.fitAnimationFrame);
+    this.fitAnimationFrame = 0;
     if (this.mixer && this.model) {
       this.mixer.stopAllAction();
       this.mixer.uncacheRoot(this.model);
@@ -186,14 +175,12 @@ export class ViewerEngine {
       });
       this.stage.remove(this.model);
     }
-    this.wireframeMaterials.forEach((owned) => {
-      for (const material of Array.isArray(owned) ? owned : [owned]) material.dispose();
-    });
+    this.wireframeMaterials.forEach((material) => material.dispose());
     this.wireframeMaterials.clear();
     this.model = null;
     this.originalMaterials.clear();
     this.clearSelection();
-    if (this.boundsHelper) this.scene.remove(this.boundsHelper);
+    this.disposeHelper(this.boundsHelper);
     this.boundsHelper = null;
     this.invalidate();
   }
@@ -281,6 +268,10 @@ export class ViewerEngine {
     if (view === 'top' || view === 'bottom') this.camera.up.set(0, 0, view === 'top' ? -1 : 1);
     this.controls.target.copy(center);
     this.camera.lookAt(center);
+    if (this.camera === this.orthographic) {
+      this.fitToView(false);
+      return;
+    }
     this.controls.update();
     this.invalidate();
   }
@@ -295,6 +286,18 @@ export class ViewerEngine {
     if (direction.lengthSq() < 0.1) direction.set(1, 0.75, 1).normalize();
     const distance = sphereSize / (2 * Math.tan((this.perspective.fov * Math.PI) / 360)) * 1.18;
     const destination = center.clone().addScaledVector(direction, distance);
+    if (this.camera === this.orthographic) {
+      const aspect = Math.max(this.container.clientWidth / Math.max(this.container.clientHeight, 1), 0.01);
+      const halfHeight = sphereSize * 0.59;
+      this.orthographic.left = -halfHeight * aspect;
+      this.orthographic.right = halfHeight * aspect;
+      this.orthographic.top = halfHeight;
+      this.orthographic.bottom = -halfHeight;
+      this.orthographic.zoom = 1;
+      this.orthographic.updateProjectionMatrix();
+    }
+    cancelAnimationFrame(this.fitAnimationFrame);
+    this.fitAnimationFrame = 0;
     if (!animate || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       this.camera.position.copy(destination);
       this.controls.target.copy(center);
@@ -308,9 +311,10 @@ export class ViewerEngine {
         this.camera.position.lerpVectors(origin, destination, eased);
         this.controls.target.lerpVectors(targetOrigin, center, eased);
         this.invalidate();
-        if (t < 1) requestAnimationFrame(move);
+        if (t < 1) this.fitAnimationFrame = requestAnimationFrame(move);
+        else this.fitAnimationFrame = 0;
       };
-      requestAnimationFrame(move);
+      this.fitAnimationFrame = requestAnimationFrame(move);
     }
     this.camera.near = Math.max(sphereSize / 10_000, 0.0001);
     this.camera.far = Math.max(sphereSize * 100, 1_000);
@@ -328,14 +332,29 @@ export class ViewerEngine {
   snapshot(scale = 2, transparent = false): string {
     const oldRatio = this.renderer.getPixelRatio();
     const oldAlpha = this.settings.transparentBackground;
-    this.renderer.setPixelRatio(Math.min(oldRatio * scale, 4));
-    this.renderer.setClearAlpha(transparent ? 0 : 1);
-    this.renderer.render(this.scene, this.camera);
-    const data = this.canvas.toDataURL('image/png');
-    this.renderer.setPixelRatio(oldRatio);
-    this.renderer.setClearAlpha(oldAlpha ? 0 : 1);
-    this.resize();
-    return data;
+    const cssPixels = Math.max(this.container.clientWidth * this.container.clientHeight, 1);
+    const pixelBudgetRatio = Math.sqrt(16_000_000 / cssPixels);
+    const snapshotRatio = Math.max(0.5, Math.min(oldRatio * scale, 3, pixelBudgetRatio));
+    try {
+      this.renderer.setPixelRatio(snapshotRatio);
+      this.renderer.setClearAlpha(transparent ? 0 : 1);
+      this.renderer.render(this.scene, this.camera);
+      return this.canvas.toDataURL('image/png');
+    } finally {
+      this.renderer.setPixelRatio(oldRatio);
+      this.renderer.setClearAlpha(oldAlpha ? 0 : 1);
+      this.resize();
+    }
+  }
+
+  private getWireframeMaterial(material: Material): Material {
+    let wireframe = this.wireframeMaterials.get(material.uuid);
+    if (!wireframe) {
+      wireframe = material.clone() as Material & { wireframe?: boolean };
+      (wireframe as Material & { wireframe?: boolean }).wireframe = true;
+      this.wireframeMaterials.set(material.uuid, wireframe);
+    }
+    return wireframe;
   }
 
   private applyRenderMode(): void {
@@ -347,17 +366,9 @@ export class ViewerEngine {
       if (this.settings.renderMode === 'material') {
         owner.material = original;
       } else if (this.settings.renderMode === 'wireframe') {
-        let wireframe = this.wireframeMaterials.get(owner.uuid);
-        if (!wireframe) {
-          wireframe = (Array.isArray(original) ? original : [original]).map((material) => {
-            const clone = material.clone() as Material & { wireframe?: boolean };
-            clone.wireframe = true;
-            return clone;
-          });
-          if (!Array.isArray(original)) wireframe = wireframe[0]!;
-          this.wireframeMaterials.set(owner.uuid, wireframe);
-        }
-        owner.material = wireframe;
+        owner.material = Array.isArray(original)
+          ? original.map((material) => this.getWireframeMaterial(material))
+          : this.getWireframeMaterial(original);
       } else if (this.settings.renderMode === 'normals') {
         owner.material = this.normalMaterial;
       } else if (this.settings.renderMode === 'matcap') {
@@ -369,7 +380,7 @@ export class ViewerEngine {
   }
 
   private updateBoundsHelper(): void {
-    if (this.boundsHelper) this.scene.remove(this.boundsHelper);
+    this.disposeHelper(this.boundsHelper);
     this.boundsHelper = null;
     if (!this.model || !this.settings.showBounds) return;
     this.boundsHelper = new Box3Helper(new Box3().setFromObject(this.model), new Color(0xc85d35));
@@ -387,7 +398,7 @@ export class ViewerEngine {
   }
 
   private clearSelection(): void {
-    if (this.selectionHelper) this.scene.remove(this.selectionHelper);
+    this.disposeHelper(this.selectionHelper);
     this.selectionHelper = null;
     this.onSelection?.(null);
   }
@@ -405,11 +416,17 @@ export class ViewerEngine {
     if (!this.model || event.button !== 0 || event.altKey || event.metaKey || event.ctrlKey) return;
     const rect = this.canvas.getBoundingClientRect();
     this.pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
-    this.raycaster.firstHitOnly = true;
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hit = this.raycaster.intersectObject(this.model, true)[0];
     this.select(hit?.object ?? null);
   };
+
+  private disposeHelper(helper: Box3Helper | null): void {
+    if (!helper) return;
+    this.scene.remove(helper);
+    helper.geometry.dispose();
+    for (const material of Array.isArray(helper.material) ? helper.material : [helper.material]) material.dispose();
+  }
 
   private handleDoubleClick = (): void => this.fitToView(true);
   private handleControlStart = (): void => { this.forceContinuous = true; this.invalidate(); };
@@ -449,13 +466,14 @@ export class ViewerEngine {
       this.invalidated = true;
     }
     if (this.invalidated) {
-      const start = performance.now();
       this.renderer.render(this.scene, this.camera);
-      const frameTime = performance.now() - start;
+      const frameTime = delta * 1000;
       this.invalidated = false;
-      this.frameSamples.push(frameTime);
-      if (this.frameSamples.length > 60) this.frameSamples.shift();
-      this.updateAdaptiveQuality(frameTime);
+      if (this.forceContinuous) {
+        this.frameSamples.push(frameTime);
+        if (this.frameSamples.length > 60) this.frameSamples.shift();
+        this.updateAdaptiveQuality(frameTime);
+      }
       if (performance.now() - this.telemetryAt > 500) this.emitTelemetry();
     }
     if (this.forceContinuous) this.invalidate();
@@ -499,6 +517,10 @@ export class ViewerEngine {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.animationFrame);
+    cancelAnimationFrame(this.fitAnimationFrame);
+    this.clearModel();
+    this.disposeHelper(this.boundsHelper);
+    this.boundsHelper = null;
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.canvas.removeEventListener('pointerdown', this.handlePointerDown);

@@ -48,7 +48,7 @@ export async function exportModel(
         animations: request.includeAnimations ? animations : [],
         trs: false,
         truncateDrawRange: true,
-        maxTextureSize: 4096,
+        maxTextureSize: 8192,
       });
     });
     const blob = binary
@@ -80,7 +80,7 @@ export async function exportModel(
   }
 
   const { USDZExporter } = await import('three/examples/jsm/exporters/USDZExporter.js');
-  const output = await new USDZExporter().parseAsync(object as Group);
+  const output = await new USDZExporter().parseAsync(object as Group, { maxTextureSize: 8192 });
   const blob = new Blob([output], { type: 'model/vnd.usdz+zip' });
   return { blob, extension: 'usdz', mimeType: blob.type, name: `${stem}.usdz` };
 }

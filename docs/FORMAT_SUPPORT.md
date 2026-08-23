@@ -24,7 +24,7 @@ Support means the current importer recognizes the listed extension and can produ
 | DotBIM | `.bim` | BIM | No | Yes | No | No | Open building-exchange geometry and metadata. |
 | USDZ | `.usdz` | Fast path | Yes | Yes | No | Yes | Current Three.js USDZ subset; variants need fixture validation. |
 | MagicaVoxel | `.vox` | Fast path | No | Yes | No | No | Palette voxel scenes. |
-| LDraw | `.ldr`, `.mpd`, `.dat` | Fast path | Yes | Yes | No | No | Library-dependent part references may require a complete package. |
+| LDraw | `.ldr`, `.mpd`, `.dat` | Fast path | Embedded MPD only | Yes | No | No | External part-library fetches are blocked in local-first mode. |
 | XYZ points | `.xyz` | Fast path | No | Yes | No | No | XYZ and common XYZRGB text rows. |
 | PCD | `.pcd` | Fast path | No | Yes | No | No | PCL point cloud data. |
 | VTK | `.vtk`, `.vtp` | Fast path | No | No | No | Yes | Polygon data supported by the Three.js loader subset. |

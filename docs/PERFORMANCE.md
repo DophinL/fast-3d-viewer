@@ -16,9 +16,12 @@ The engine watches frame time and adjusts pixel ratio inside a bounded range. Th
 
 Importers and exporters load when requested. The large CAD/OpenCascade path is split away from the initial workbench. A user opening an STL should not download a CAD kernel first.
 
-### BVH picking
+### First-frame protection
 
-Triangle raycasts use `three-mesh-bvh` acceleration after model load. This avoids a linear triangle walk on every selection click for supported mesh geometry.
+Opening a model does not synchronously build an acceleration structure for every
+mesh. This keeps time-to-first-frame bounded for large assemblies. Selection
+currently uses Three.js raycasting; a cancellable, lazy BVH build is planned for
+assets where repeated picking justifies its memory cost.
 
 ### Worker topology scan
 
@@ -30,7 +33,7 @@ Replacing a model disposes geometry, textures, and owned materials. Export objec
 
 ## Current build shape
 
-The Vite production build emits a small application entry plus independently cached loader families. The CAD engine is expected to be the largest lazy chunk. Use the build output as evidence for a specific commit rather than copying old numbers into product claims.
+The Vite production build emits an application entry plus independently cached loader families. The CAD adapter is lazy, and its large same-origin WASM runtimes are fetched only for their formats. Use the build output and the HTML module-preload list as evidence for a specific commit rather than copying old numbers into product claims.
 
 ```bash
 npm run build
@@ -60,7 +63,7 @@ Run at least five measured iterations after one warm-up and report median plus p
 
 These are engineering guardrails, not promises for every model:
 
-- Initial application JavaScript should remain below 350 kB uncompressed.
+- Initial application JavaScript should remain below 300 kB gzip.
 - CAD and rarely used parsers must stay outside the initial chunk.
 - Static scenes should stop requesting frames; interaction should reactivate the loop.
 - Interactive work should target a 16.7 ms frame on capable desktop hardware.

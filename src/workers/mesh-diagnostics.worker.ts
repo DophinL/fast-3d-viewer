@@ -80,7 +80,6 @@ function createTopology(payloads: GeometryPayload[], requestedTolerance?: number
   let degenerateFaces = 0;
   let duplicateFaces = 0;
   let surfaceArea = 0;
-  let signedVolume = 0;
 
   const pointKey = (point: Point) => `${Math.round(point.x / epsilon)},${Math.round(point.y / epsilon)},${Math.round(point.z / epsilon)}`;
   const getPointId = (point: Point): number => {
@@ -118,10 +117,36 @@ function createTopology(payloads: GeometryPayload[], requestedTolerance?: number
     addEdge(ids[1], ids[2], faceIndex);
     addEdge(ids[2], ids[0], faceIndex);
     surfaceArea += doubleArea / 2;
-    signedVolume += dot(a, cross(b, c)) / 6;
   });
 
-  return { bounds, epsilon, points, edges, triangles, degenerateTriangles, triangleCount, degenerateFaces, duplicateFaces, surfaceArea, signedVolume };
+  return { bounds, epsilon, points, edges, triangles, degenerateTriangles, triangleCount, degenerateFaces, duplicateFaces, surfaceArea };
+}
+
+function absoluteShellVolume(topology: ReturnType<typeof createTopology>): number {
+  const neighbors = Array.from({ length: topology.triangles.length }, () => [] as number[]);
+  for (const edge of topology.edges.values()) {
+    for (const face of edge.faces) {
+      for (const adjacent of edge.faces) if (adjacent !== face) neighbors[face]!.push(adjacent);
+    }
+  }
+  const visited = new Uint8Array(topology.triangles.length);
+  let total = 0;
+  for (let start = 0; start < topology.triangles.length; start += 1) {
+    if (visited[start]) continue;
+    const stack = [start];
+    let componentVolume = 0;
+    visited[start] = 1;
+    while (stack.length) {
+      const face = stack.pop()!;
+      const [a, b, c] = topology.triangles[face]!.source;
+      componentVolume += dot(a, cross(b, c)) / 6;
+      for (const adjacent of neighbors[face]!) {
+        if (!visited[adjacent]) { visited[adjacent] = 1; stack.push(adjacent); }
+      }
+    }
+    total += Math.abs(componentVolume);
+  }
+  return total;
 }
 
 export function analyze(payloads: GeometryPayload[], scanLimited: boolean): MeshDiagnostics {
@@ -155,7 +180,11 @@ export function analyze(payloads: GeometryPayload[], scanLimited: boolean): Mesh
   }
   let isolatedFaces = 0;
   for (const count of faceNeighbors) if (count === 0) isolatedFaces += 1;
-  const watertight = boundaryEdges === 0 && nonManifoldEdges === 0 && topology.degenerateFaces === 0;
+  const watertight = boundaryEdges === 0
+    && nonManifoldEdges === 0
+    && inconsistentEdges === 0
+    && topology.degenerateFaces === 0
+    && topology.duplicateFaces === 0;
   const issues: AssetIssue[] = [];
   if (boundaryEdges > 0) issues.push({ code: 'open-boundary', severity: 'error', title: 'Open boundary edges', detail: `${boundaryEdges.toLocaleString()} edges belong to only one face, so the surface is open.`, fix: 'Fill intentional holes and reconnect cracks.', count: boundaryEdges });
   if (nonManifoldEdges > 0) issues.push({ code: 'non-manifold', severity: 'error', title: 'Non-manifold edges', detail: `${nonManifoldEdges.toLocaleString()} edges are shared by more than two faces.`, fix: 'Separate overlapping shells or remove internal faces.', count: nonManifoldEdges });
@@ -174,7 +203,7 @@ export function analyze(payloads: GeometryPayload[], scanLimited: boolean): Mesh
     duplicateFaces: topology.duplicateFaces,
     isolatedFaces,
     surfaceArea: topology.surfaceArea,
-    signedVolume: Math.abs(topology.signedVolume),
+    signedVolume: absoluteShellVolume(topology),
     watertight,
     durationMs: Math.round(performance.now() - startedAt),
     scanLimited: false,
@@ -194,6 +223,7 @@ function buildBoundaryLoops(topology: ReturnType<typeof createTopology>, maxEdge
   const edgeKey = (a: number, b: number) => a < b ? `${a}:${b}` : `${b}:${a}`;
   const loops: number[][] = [];
   for (const [start, neighbors] of adjacency) {
+    if (neighbors.length !== 2) continue;
     for (const first of neighbors) {
       if (used.has(edgeKey(start, first))) continue;
       const loop = [start];
@@ -204,7 +234,16 @@ function buildBoundaryLoops(topology: ReturnType<typeof createTopology>, maxEdge
         loop.push(current);
         const next = (adjacency.get(current) ?? []).find((candidate) => candidate !== previous && (!used.has(edgeKey(current, candidate)) || candidate === start));
         if (next === undefined) break;
-        if (next === start) { loops.push(loop); break; }
+        if (next === start) {
+          used.add(edgeKey(current, start));
+          if (new Set(loop).size === loop.length && loop.every((point) => adjacency.get(point)?.length === 2)) {
+            const firstEdge = topology.edges.get(edgeKey(loop[0]!, loop[1]!));
+            const traversalIsForward = loop[0]! < loop[1]!;
+            const faceIsForward = firstEdge?.forward === 1;
+            loops.push(traversalIsForward === faceIsForward ? [...loop].reverse() : loop);
+          }
+          break;
+        }
         used.add(edgeKey(current, next));
         previous = current;
         current = next;
@@ -230,6 +269,29 @@ function isPlanarEnough(points: Point[], tolerance: number): boolean {
   const normal = loopNormal(points);
   const origin = points[0]!;
   return points.every((point) => Math.abs(dot(subtract(point, origin), normal)) <= tolerance * 4);
+}
+
+function isConvexLoop(points: Point[]): boolean {
+  if (points.length < 3) return false;
+  const normal = loopNormal(points);
+  const axis = Math.abs(normal.x) > Math.abs(normal.y)
+    ? Math.abs(normal.x) > Math.abs(normal.z) ? 'x' : 'z'
+    : Math.abs(normal.y) > Math.abs(normal.z) ? 'y' : 'z';
+  const project = (point: Point): [number, number] => axis === 'x'
+    ? [point.y, point.z]
+    : axis === 'y' ? [point.x, point.z] : [point.x, point.y];
+  let sign = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const [ax, ay] = project(points[index]!);
+    const [bx, by] = project(points[(index + 1) % points.length]!);
+    const [cx, cy] = project(points[(index + 2) % points.length]!);
+    const turn = (bx - ax) * (cy - by) - (by - ay) * (cx - bx);
+    if (Math.abs(turn) < 1e-12) continue;
+    const nextSign = Math.sign(turn);
+    if (sign !== 0 && nextSign !== sign) return false;
+    sign = nextSign;
+  }
+  return sign !== 0;
 }
 
 export function repair(payloads: GeometryPayload[], options: RepairOptions): RepairResult {
@@ -262,6 +324,7 @@ export function repair(payloads: GeometryPayload[], options: RepairOptions): Rep
     for (const loop of loops) {
       const points = loop.map((id) => topology.points[id]!);
       if (!isPlanarEnough(points, topology.epsilon)) { warnings.push(`Skipped a non-planar boundary with ${points.length} edges.`); continue; }
+      if (!isConvexLoop(points)) { warnings.push(`Skipped a concave or self-intersecting boundary with ${points.length} edges.`); continue; }
       const center = scale(points.reduce(add, { x: 0, y: 0, z: 0 }), 1 / points.length);
       for (let index = 0; index < points.length; index += 1) {
         const a = points[index]!;
@@ -289,7 +352,7 @@ export function repair(payloads: GeometryPayload[], options: RepairOptions): Rep
     positions: new Float32Array(output),
     removedFaces,
     filledHoles,
-    mergedVertices: Math.max(0, topology.triangleCount * 3 - topology.points.length),
+    mergedVertices: 0,
     beforeTriangles: topology.triangleCount,
     afterTriangles: output.length / 9,
     durationMs: Math.round(performance.now() - startedAt),
