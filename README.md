@@ -18,7 +18,7 @@ Fast 3D Viewer is designed for the moment after someone receives a model and bef
 
 ## Try it
 
-Open the [GitHub Pages demo](https://dophinl.github.io/fast-3d-viewer/) and use the built-in calibration model, or drop your own files. Current Chrome, Edge, Firefox, and Safari releases with WebGL 2 are recommended.
+Open the [GitHub Pages demo](https://dophinl.github.io/fast-3d-viewer/) and use the built-in calibration model, or drop your own files. Current Chrome and Edge releases with WebGL 2 are recommended and CI-gated. Firefox and Safari compatibility is intended but not yet part of the automated browser matrix.
 
 ```bash
 git clone https://github.com/DophinL/fast-3d-viewer.git
@@ -31,7 +31,7 @@ The app is a static Vite build. No API keys, database, or server are required.
 
 ## Format coverage
 
-The registry currently exposes **27 format families** and 35 filename extensions.
+The registry currently exposes **27 format families** and 36 filename extensions.
 
 | Family | Formats |
 | --- | --- |
