@@ -1,6 +1,6 @@
 import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { createFileBundle } from '../../src/core/file-bundle';
+import { accountArchiveEntry, createFileBundle } from '../../src/core/file-bundle';
 
 describe('file bundle', () => {
   it('chooses a portable scene as main file while retaining companions', async () => {
@@ -49,6 +49,18 @@ describe('file bundle', () => {
 
     await expect(createFileBundle([new File([archive], 'too-many.zip')]))
       .rejects.toThrow('more than 1,024 files');
+  });
+
+  it('enforces per-entry and cumulative archive byte budgets without allocating them', () => {
+    const megabyte = 1024 * 1024;
+    expect(accountArchiveEntry('limit.bin', 256 * megabyte, 0, 0)).toEqual({
+      fileCount: 1,
+      expandedBytes: 256 * megabyte,
+    });
+    expect(() => accountArchiveEntry('oversized.bin', 256 * megabyte + 1, 0, 0))
+      .toThrow('256 MB per-file limit');
+    expect(() => accountArchiveEntry('second.bin', 256 * megabyte, 1, 256 * megabyte + 1))
+      .toThrow('512 MB interactive limit');
   });
 
   it('rejects packages containing only companion files', async () => {

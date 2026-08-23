@@ -6,6 +6,20 @@ const MAX_ARCHIVE_FILES = 1_024;
 const MAX_ARCHIVE_ENTRY_BYTES = 256 * 1024 * 1024;
 const MAX_ARCHIVE_EXPANDED_BYTES = 512 * 1024 * 1024;
 
+export function accountArchiveEntry(name: string, originalSize: number, fileCount: number, expandedBytes: number) {
+  const next = { fileCount: fileCount + 1, expandedBytes: expandedBytes + originalSize };
+  if (next.fileCount > MAX_ARCHIVE_FILES) {
+    throw new Error(`The archive contains more than ${MAX_ARCHIVE_FILES.toLocaleString()} files.`);
+  }
+  if (originalSize > MAX_ARCHIVE_ENTRY_BYTES) {
+    throw new Error(`The archive entry ${name} expands beyond the 256 MB per-file limit.`);
+  }
+  if (next.expandedBytes > MAX_ARCHIVE_EXPANDED_BYTES) {
+    throw new Error('The archive expands beyond the 512 MB interactive limit.');
+  }
+  return next;
+}
+
 const MAIN_FILE_PRIORITY = ['glb', ...FORMAT_DEFINITIONS.flatMap((format) => format.extensions).filter((extension) => extension !== 'glb')];
 
 const normalizePath = (path: string) => path
@@ -56,17 +70,7 @@ async function unpackZip(file: File): Promise<FileEntry[]> {
     filter: (entry) => {
       assertSafeArchivePath(entry.name);
       if (entry.name.endsWith('/')) return false;
-      fileCount += 1;
-      expandedBytes += entry.originalSize;
-      if (fileCount > MAX_ARCHIVE_FILES) {
-        throw new Error(`The archive contains more than ${MAX_ARCHIVE_FILES.toLocaleString()} files.`);
-      }
-      if (entry.originalSize > MAX_ARCHIVE_ENTRY_BYTES) {
-        throw new Error(`The archive entry ${entry.name} expands beyond the 256 MB per-file limit.`);
-      }
-      if (expandedBytes > MAX_ARCHIVE_EXPANDED_BYTES) {
-        throw new Error('The archive expands beyond the 512 MB interactive limit.');
-      }
+      ({ fileCount, expandedBytes } = accountArchiveEntry(entry.name, entry.originalSize, fileCount, expandedBytes));
       return true;
     },
   });

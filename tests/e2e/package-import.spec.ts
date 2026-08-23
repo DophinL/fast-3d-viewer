@@ -99,3 +99,20 @@ test('resolves remote glTF companions against the source URL', async ({ page }) 
   await expect(page.locator('.viewport-badge')).toContainText('scene.gltf', { timeout: 20_000 });
   expect(companionRequested).toBe(true);
 });
+
+test('keeps URL import recoverable after protocol and HTTP failures', async ({ page }) => {
+  await page.route('https://fixtures.example/missing.glb', (route) => route.fulfill({ status: 503, body: 'offline' }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open URL' }).click();
+  const input = page.getByLabel('Public model URL');
+
+  await input.fill('ftp://fixtures.example/model.glb');
+  await page.getByRole('button', { name: 'Load model' }).click();
+  await expect(page.getByRole('alert')).toContainText('Only HTTP and HTTPS');
+  await page.getByRole('button', { name: 'Dismiss error' }).click();
+
+  await input.fill('https://fixtures.example/missing.glb');
+  await page.getByRole('button', { name: 'Load model' }).click();
+  await expect(page.getByRole('alert')).toContainText('HTTP 503');
+  await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
+});
