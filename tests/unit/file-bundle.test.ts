@@ -21,7 +21,6 @@ describe('file bundle', () => {
       'package/scene.gltf': new TextEncoder().encode('{"asset":{"version":"2.0"}}'),
       'package/scene.bin': new Uint8Array([1, 2, 3, 4]),
       'package/textures/base color.png': new Uint8Array([5, 6]),
-      '../unsafe.txt': new TextEncoder().encode('ignored traversal segment'),
     });
     const bundle = await createFileBundle([new File([archive], 'model.zip')]);
 
@@ -29,6 +28,27 @@ describe('file bundle', () => {
     expect(bundle.mainFile.name).toBe('scene.gltf');
     expect(bundle.entries.some((entry) => entry.normalizedPath === 'package/scene.bin')).toBe(true);
     expect(bundle.entries.every((entry) => !entry.normalizedPath.includes('..'))).toBe(true);
+  });
+
+  it('rejects parent traversal and absolute archive paths', async () => {
+    const traversal = zipSync({
+      'model.stl': new TextEncoder().encode('solid model\nendsolid model'),
+      '../outside.txt': new TextEncoder().encode('must not be extracted'),
+    });
+
+    await expect(createFileBundle([new File([traversal], 'unsafe.zip')]))
+      .rejects.toThrow('unsafe path');
+  });
+
+  it('rejects archives above the interactive file-count limit', async () => {
+    const entries = Object.fromEntries(Array.from({ length: 1_025 }, (_, index) => [
+      `parts/${index}.txt`,
+      new Uint8Array([index % 255]),
+    ]));
+    const archive = zipSync(entries);
+
+    await expect(createFileBundle([new File([archive], 'too-many.zip')]))
+      .rejects.toThrow('more than 1,024 files');
   });
 
   it('rejects packages containing only companion files', async () => {

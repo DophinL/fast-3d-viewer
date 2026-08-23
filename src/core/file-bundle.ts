@@ -2,6 +2,10 @@ import { unzipSync } from 'fflate';
 import { findFormat, getExtension, isSupportedFile } from './formats';
 import type { FileBundle, FileEntry } from './types';
 
+const MAX_ARCHIVE_FILES = 1_024;
+const MAX_ARCHIVE_ENTRY_BYTES = 256 * 1024 * 1024;
+const MAX_ARCHIVE_EXPANDED_BYTES = 512 * 1024 * 1024;
+
 const MAIN_FILE_PRIORITY = [
   'glb', 'gltf', 'fbx', 'obj', 'usdz', 'step', 'stp', 'iges', 'igs', 'brep', '3dm',
   'fcstd', 'ifc', '3mf', 'stl', 'ply', 'dae', '3ds', 'wrl', 'vrml', 'vox', 'ldr',
@@ -14,6 +18,15 @@ const normalizePath = (path: string) => path
   .split('/')
   .filter((part) => part && part !== '.' && part !== '..')
   .join('/');
+
+function assertSafeArchivePath(path: string): void {
+  const portable = path.replaceAll('\\', '/');
+  const segments = portable.split('/');
+  if (!portable || portable.startsWith('/') || /^[a-z]:\//i.test(portable)
+    || segments.some((segment) => segment === '..')) {
+    throw new Error(`The archive contains an unsafe path: ${path || '(empty)'}.`);
+  }
+}
 
 function asEntry(file: File, source: FileEntry['source'], path = file.name): FileEntry {
   const normalizedPath = normalizePath(path);
@@ -41,7 +54,26 @@ function chooseMainFile(entries: FileEntry[]): FileEntry {
 }
 
 async function unpackZip(file: File): Promise<FileEntry[]> {
-  const archive = unzipSync(new Uint8Array(await file.arrayBuffer()));
+  let fileCount = 0;
+  let expandedBytes = 0;
+  const archive = unzipSync(new Uint8Array(await file.arrayBuffer()), {
+    filter: (entry) => {
+      assertSafeArchivePath(entry.name);
+      if (entry.name.endsWith('/')) return false;
+      fileCount += 1;
+      expandedBytes += entry.originalSize;
+      if (fileCount > MAX_ARCHIVE_FILES) {
+        throw new Error(`The archive contains more than ${MAX_ARCHIVE_FILES.toLocaleString()} files.`);
+      }
+      if (entry.originalSize > MAX_ARCHIVE_ENTRY_BYTES) {
+        throw new Error(`The archive entry ${entry.name} expands beyond the 256 MB per-file limit.`);
+      }
+      if (expandedBytes > MAX_ARCHIVE_EXPANDED_BYTES) {
+        throw new Error('The archive expands beyond the 512 MB interactive limit.');
+      }
+      return true;
+    },
+  });
   return Object.entries(archive)
     .filter(([path, bytes]) => !path.endsWith('/') && bytes.byteLength > 0)
     .map(([path, bytes]) => {
