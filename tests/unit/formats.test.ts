@@ -11,7 +11,7 @@ describe('format registry', () => {
   });
 
   it('publishes unique supported extensions and ZIP as a package transport', () => {
-    expect(SUPPORTED_EXTENSIONS).toHaveLength(35);
+    expect(SUPPORTED_EXTENSIONS).toHaveLength(36);
     expect(new Set(SUPPORTED_EXTENSIONS).size).toBe(SUPPORTED_EXTENSIONS.length);
     expect(getAcceptValue()).toContain('.glb');
     expect(getAcceptValue()).toContain('.zip');
