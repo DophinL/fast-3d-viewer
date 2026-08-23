@@ -4,14 +4,14 @@ Support means the current importer recognizes the listed extension and can produ
 
 | Format | Extensions | Route | Package | Materials | Animation | Mesh repair | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| glTF / GLB | `.gltf`, `.glb` | Coverage | Yes | Yes | Yes | Yes | External buffers and textures require their companion paths. |
+| glTF / GLB | `.gltf`, `.glb` | Fast path | Yes | Yes | Yes | Yes | External buffers/textures, Meshopt, and Draco; compatibility fallback on parser failure. |
 | Wavefront OBJ | `.obj` | Coverage | Yes | Yes | No | Yes | Include MTL and texture files or drop the whole folder/ZIP. |
-| Autodesk FBX | `.fbx` | Coverage | Yes | Yes | Yes | Yes | Binary and ASCII variants depend on upstream parser coverage. |
+| Autodesk FBX | `.fbx` | Fast path | Yes | Yes | Yes | Yes | Binary and ASCII; compatibility fallback on parser failure. |
 | STL | `.stl` | Coverage | No | No | No | Yes | Binary/ASCII; format has no standard unit metadata. |
 | PLY | `.ply` | Coverage | No | Yes | No | Yes | Mesh and point data; property combinations vary. |
 | 3MF | `.3mf` | Coverage | Yes | Yes | No | Yes | Packaged manufacturing scene; not all extensions are preserved. |
 | 3D Studio | `.3ds` | Coverage | Yes | Yes | No | Yes | Legacy limits and texture references apply. |
-| COLLADA | `.dae` | Coverage | Yes | Yes | Yes | Yes | Exporter-specific profiles may differ. |
+| COLLADA | `.dae` | Fast path | Yes | Yes | Yes | Yes | Exporter-specific profiles may differ; compatibility fallback is available. |
 | VRML | `.wrl`, `.vrml` | Coverage | Yes | Yes | No | Yes | VRML 2.0 path. |
 | AMF | `.amf` | Coverage | No | Yes | No | Yes | Additive manufacturing triangle data. |
 | OFF | `.off` | Coverage | No | No | No | Yes | Polygon mesh converted to render triangles. |
@@ -59,4 +59,3 @@ Open an issue with a redistributable fixture and describe which layer failed:
 6. material or texture decode;
 7. viewport rendering;
 8. diagnosis, repair, or export.
-

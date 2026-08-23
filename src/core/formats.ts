@@ -1,14 +1,14 @@
 import type { FormatDefinition } from './types';
 
 const formats: FormatDefinition[] = [
-  { id: 'gltf', label: 'glTF / GLB', extensions: ['gltf', 'glb'], family: 'web', packageSupport: true, animations: true, materials: true, repair: true, loader: 'upstream', description: 'Modern web and interchange scenes, including external buffers and textures.' },
+  { id: 'gltf', label: 'glTF / GLB', extensions: ['gltf', 'glb'], family: 'web', packageSupport: true, animations: true, materials: true, repair: true, loader: 'extra', description: 'Modern web and interchange scenes, including external buffers and textures.' },
   { id: 'obj', label: 'Wavefront OBJ', extensions: ['obj'], family: 'mesh', packageSupport: true, animations: false, materials: true, repair: true, loader: 'upstream', description: 'OBJ packages with MTL files and image textures.' },
-  { id: 'fbx', label: 'Autodesk FBX', extensions: ['fbx'], family: 'scene', packageSupport: true, animations: true, materials: true, repair: true, loader: 'upstream', description: 'Binary and ASCII FBX scenes with skinning and animation.' },
+  { id: 'fbx', label: 'Autodesk FBX', extensions: ['fbx'], family: 'scene', packageSupport: true, animations: true, materials: true, repair: true, loader: 'extra', description: 'Binary and ASCII FBX scenes with skinning and animation.' },
   { id: 'stl', label: 'STL', extensions: ['stl'], family: 'print', packageSupport: false, animations: false, materials: false, repair: true, loader: 'upstream', description: 'Binary or ASCII triangle meshes with print diagnostics and local repair.' },
   { id: 'ply', label: 'PLY', extensions: ['ply'], family: 'point-cloud', packageSupport: false, animations: false, materials: true, repair: true, loader: 'upstream', description: 'ASCII and binary polygon meshes or point clouds.' },
   { id: '3mf', label: '3MF', extensions: ['3mf'], family: 'print', packageSupport: true, animations: false, materials: true, repair: true, loader: 'upstream', description: 'Packaged additive-manufacturing scenes.' },
   { id: '3ds', label: '3D Studio', extensions: ['3ds'], family: 'scene', packageSupport: true, animations: false, materials: true, repair: true, loader: 'upstream', description: 'Legacy 3D Studio mesh scenes.' },
-  { id: 'dae', label: 'COLLADA', extensions: ['dae'], family: 'scene', packageSupport: true, animations: true, materials: true, repair: true, loader: 'upstream', description: 'COLLADA scenes, materials and animation channels.' },
+  { id: 'dae', label: 'COLLADA', extensions: ['dae'], family: 'scene', packageSupport: true, animations: true, materials: true, repair: true, loader: 'extra', description: 'COLLADA scenes, materials and animation channels.' },
   { id: 'vrml', label: 'VRML', extensions: ['wrl', 'vrml'], family: 'scene', packageSupport: true, animations: false, materials: true, repair: true, loader: 'upstream', description: 'VRML 2.0 geometry and material scenes.' },
   { id: 'amf', label: 'AMF', extensions: ['amf'], family: 'print', packageSupport: false, animations: false, materials: true, repair: true, loader: 'upstream', description: 'Additive Manufacturing Format meshes.' },
   { id: 'off', label: 'OFF', extensions: ['off'], family: 'mesh', packageSupport: false, animations: false, materials: false, repair: true, loader: 'upstream', description: 'Object File Format polygon meshes.' },

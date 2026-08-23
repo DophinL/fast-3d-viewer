@@ -1,6 +1,7 @@
 import {
   AnimationClip,
   Group,
+  LoadingManager,
   Mesh,
   MeshStandardMaterial,
   Points,
@@ -28,10 +29,86 @@ const update = (callback: ProgressCallback, phase: LoadProgress['phase'], progre
 const readText = (file: File) => file.text();
 const readBuffer = (file: File) => file.arrayBuffer();
 
+function createPackageManager(bundle: FileBundle): { manager: LoadingManager; cleanup: () => void } {
+  const manager = new LoadingManager();
+  const objectUrls = new Map<string, string>();
+  const entriesByPath = new Map(bundle.entries.map((entry) => [entry.normalizedPath.toLowerCase(), entry]));
+  const entriesByName = new Map(bundle.entries.map((entry) => [entry.name.toLowerCase(), entry]));
+  manager.setURLModifier((requestedUrl) => {
+    if (/^(?:data:|blob:|https?:)/i.test(requestedUrl)) return requestedUrl;
+    let decoded = requestedUrl;
+    try { decoded = decodeURIComponent(requestedUrl); } catch { /* Keep the original lookup key. */ }
+    const normalized = decoded.split(/[?#]/, 1)[0]!.replaceAll('\\', '/').replace(/^\.\//, '').replace(/^\//, '');
+    const name = normalized.split('/').pop()?.toLowerCase() ?? normalized.toLowerCase();
+    const entry = entriesByPath.get(normalized.toLowerCase()) ?? entriesByName.get(name);
+    if (!entry) return requestedUrl;
+    let objectUrl = objectUrls.get(entry.normalizedPath);
+    if (!objectUrl) {
+      objectUrl = URL.createObjectURL(entry.file);
+      objectUrls.set(entry.normalizedPath, objectUrl);
+    }
+    return objectUrl;
+  });
+  return {
+    manager,
+    cleanup: () => objectUrls.forEach((url) => URL.revokeObjectURL(url)),
+  };
+}
+
 async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Promise<ParsedScene> {
   const file = bundle.mainFile.file;
   const extension = bundle.mainFile.extension;
   update(onProgress, 'parsing', 0.35, `Parsing ${extension.toUpperCase()}`);
+
+  if (extension === 'gltf' || extension === 'glb') {
+    const resources = createPackageManager(bundle);
+    try {
+      const [{ GLTFLoader }, { DRACOLoader }, { MeshoptDecoder }] = await Promise.all([
+        import('three/examples/jsm/loaders/GLTFLoader.js'),
+        import('three/examples/jsm/loaders/DRACOLoader.js'),
+        import('three/examples/jsm/libs/meshopt_decoder.module.js'),
+      ]);
+      const draco = new DRACOLoader(resources.manager);
+      draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+      const loader = new GLTFLoader(resources.manager).setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
+      const input = extension === 'glb' ? await readBuffer(file) : await readText(file);
+      const parsed = await new Promise<Awaited<ReturnType<typeof loader.parseAsync>>>((resolve, reject) => {
+        loader.parse(input, '', resolve, reject);
+      });
+      return {
+        root: parsed.scene,
+        animations: parsed.animations,
+        parser: 'Fast native loader',
+        cleanup: () => { resources.cleanup(); draco.dispose(); },
+      };
+    } catch (error) {
+      resources.cleanup();
+      throw error;
+    }
+  }
+  if (extension === 'fbx') {
+    const resources = createPackageManager(bundle);
+    try {
+      const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
+      const root = new FBXLoader(resources.manager).parse(await readBuffer(file), '');
+      return { root, animations: root.animations, parser: 'Fast native loader', cleanup: resources.cleanup };
+    } catch (error) {
+      resources.cleanup();
+      throw error;
+    }
+  }
+  if (extension === 'dae') {
+    const resources = createPackageManager(bundle);
+    try {
+      const { ColladaLoader } = await import('three/examples/jsm/loaders/ColladaLoader.js');
+      const parsed = new ColladaLoader(resources.manager).parse(await readText(file), '');
+      if (!parsed) throw new Error('The COLLADA parser did not produce a scene.');
+      return { root: parsed.scene, animations: parsed.scene.animations, parser: 'Fast native loader', cleanup: resources.cleanup };
+    } catch (error) {
+      resources.cleanup();
+      throw error;
+    }
+  }
 
   if (extension === 'usdz') {
     const { USDZLoader } = await import('three/examples/jsm/loaders/USDZLoader.js');
@@ -124,9 +201,18 @@ export async function loadModel(bundle: FileBundle, onProgress: ProgressCallback
   const startedAt = performance.now();
   update(onProgress, 'reading', 0.05, 'Preparing local files');
   const parseStartedAt = performance.now();
-  const parsed = format.loader === 'extra'
-    ? await parseExtra(bundle, onProgress)
-    : await parseUpstream(bundle, onProgress);
+  let parsed: ParsedScene;
+  if (format.loader === 'extra') {
+    try {
+      parsed = await parseExtra(bundle, onProgress);
+    } catch (error) {
+      if (!['gltf', 'glb', 'fbx', 'dae'].includes(bundle.mainFile.extension)) throw error;
+      update(onProgress, 'parsing', 0.38, 'Retrying with the compatibility engine');
+      parsed = await parseUpstream(bundle, onProgress);
+    }
+  } else {
+    parsed = await parseUpstream(bundle, onProgress);
+  }
   const parseDurationMs = performance.now() - parseStartedAt;
   update(onProgress, 'framing', 0.92, 'Inspecting and framing model');
   parsed.root.name ||= bundle.mainFile.name;
