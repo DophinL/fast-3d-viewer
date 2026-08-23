@@ -37,6 +37,7 @@ export interface FileBundle {
   mainFile: FileEntry;
   totalBytes: number;
   archiveName?: string;
+  remoteBaseUrl?: string;
   warnings: string[];
 }
 

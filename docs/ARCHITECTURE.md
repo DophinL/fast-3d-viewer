@@ -30,6 +30,8 @@ interface FileBundle {
 
 Each entry retains a normalized relative path, extension, size, and origin. This allows package-aware loaders to resolve `scene.gltf -> buffers/scene.bin` or `model.obj -> materials/model.mtl` without pretending every format is single-file.
 
+Remote URL intake also retains the source directory as `remoteBaseUrl`, so relative glTF, FBX, and COLLADA companions resolve against the model's origin instead of the viewer's own URL. Every remote response still needs to allow browser CORS.
+
 The vendored backend currently resolves several companion types by basename. Packages containing different nested files with the same basename are therefore an acknowledged ambiguity. A future backend adapter should expose a path-preserving virtual filesystem rather than flattening those names.
 
 ## Loader ownership
@@ -99,4 +101,3 @@ Keep it opt-in, non-destructive, measurable, cancellable when possible, and pair
 ### Embedding
 
 The current release is an application. A future package can extract `FileBundle`, loader routing, diagnostics, and `ViewerEngine` behind a stable headless API. Until then, internal modules may change between minor releases.
-

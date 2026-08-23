@@ -126,5 +126,6 @@ export async function fetchRemoteBundle(url: string): Promise<FileBundle> {
   const file = new File([await response.blob()], name, { type: response.headers.get('content-type') || '' });
   const bundle = await createFileBundle([file]);
   bundle.entries.forEach((entry) => { entry.source = 'remote'; });
+  bundle.remoteBaseUrl = new URL('.', parsed).toString();
   return bundle;
 }

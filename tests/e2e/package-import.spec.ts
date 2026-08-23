@@ -58,3 +58,44 @@ test('shows the registered capability matrix without loading a model', async ({ 
   await dialog.getByRole('button', { name: /Close format/i }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
 });
+
+test('resolves remote glTF companions against the source URL', async ({ page }) => {
+  const geometry = Buffer.alloc(42);
+  Buffer.from(new Float32Array([-1, 0, 0, 1, 0, 0, 0, 1.5, 0]).buffer).copy(geometry, 0);
+  Buffer.from(new Uint16Array([0, 1, 2]).buffer).copy(geometry, 36);
+  let companionRequested = false;
+  await page.route('https://fixtures.example/**', async (route) => {
+    if (route.request().url().endsWith('/models/geometry.bin')) {
+      companionRequested = true;
+      await route.fulfill({ body: geometry, contentType: 'application/octet-stream' });
+      return;
+    }
+    await route.fulfill({
+      contentType: 'model/gltf+json',
+      body: JSON.stringify({
+        asset: { version: '2.0' },
+        buffers: [{ uri: 'geometry.bin', byteLength: 42 }],
+        bufferViews: [
+          { buffer: 0, byteOffset: 0, byteLength: 36, target: 34962 },
+          { buffer: 0, byteOffset: 36, byteLength: 6, target: 34963 },
+        ],
+        accessors: [
+          { bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [-1, 0, 0], max: [1, 1.5, 0] },
+          { bufferView: 1, componentType: 5123, count: 3, type: 'SCALAR' },
+        ],
+        meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1 }] }],
+        nodes: [{ mesh: 0 }],
+        scenes: [{ nodes: [0] }],
+        scene: 0,
+      }),
+    });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open URL' }).click();
+  await page.getByLabel('Public model URL').fill('https://fixtures.example/models/scene.gltf');
+  await page.getByRole('button', { name: 'Load model' }).click();
+
+  await expect(page.locator('.viewport-badge')).toContainText('scene.gltf', { timeout: 20_000 });
+  expect(companionRequested).toBe(true);
+});

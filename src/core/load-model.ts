@@ -41,7 +41,9 @@ function createPackageManager(bundle: FileBundle): { manager: LoadingManager; cl
     const normalized = decoded.split(/[?#]/, 1)[0]!.replaceAll('\\', '/').replace(/^\.\//, '').replace(/^\//, '');
     const name = normalized.split('/').pop()?.toLowerCase() ?? normalized.toLowerCase();
     const entry = entriesByPath.get(normalized.toLowerCase()) ?? entriesByName.get(name);
-    if (!entry) return requestedUrl;
+    if (!entry) {
+      return bundle.remoteBaseUrl ? new URL(requestedUrl, bundle.remoteBaseUrl).toString() : requestedUrl;
+    }
     let objectUrl = objectUrls.get(entry.normalizedPath);
     if (!objectUrl) {
       objectUrl = URL.createObjectURL(entry.file);
