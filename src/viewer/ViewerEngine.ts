@@ -5,7 +5,6 @@ import {
   AxesHelper,
   Box3,
   Box3Helper,
-  Clock,
   Color,
   DirectionalLight,
   DoubleSide,
@@ -74,7 +73,6 @@ export class ViewerEngine {
   private readonly controls: OrbitControls;
   private readonly raycaster = new Raycaster();
   private readonly pointer = new Vector2();
-  private readonly clock = new Clock();
   private readonly grid = new GridHelper(10, 20, 0x68675f, 0xa7a398);
   private readonly axes = new AxesHelper(1);
   private readonly hemisphere = new HemisphereLight(0xf8f3e6, 0x5b625f, 1.6);
@@ -94,6 +92,7 @@ export class ViewerEngine {
   private forceContinuous = false;
   private frameSamples: number[] = [];
   private telemetryAt = 0;
+  private lastTickAt = performance.now();
   private currentPixelRatio = 1;
   private onTelemetry?: (telemetry: RendererTelemetry) => void;
   private onSelection?: (object: Object3D | null) => void;
@@ -399,7 +398,9 @@ export class ViewerEngine {
   private tick = (): void => {
     if (this.disposed) return;
     this.animationFrame = requestAnimationFrame(this.tick);
-    const delta = Math.min(this.clock.getDelta(), 0.1);
+    const now = performance.now();
+    const delta = Math.min((now - this.lastTickAt) / 1000, 0.1);
+    this.lastTickAt = now;
     if (this.forceContinuous) {
       this.controls.update(delta);
       this.invalidated = true;

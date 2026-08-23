@@ -64,7 +64,7 @@ function downloadDataUrl(url: string, name: string): void {
 }
 
 export function App() {
-  const { viewportRef, canvasRef, engineRef, telemetry, selection, applySettings } = useViewerEngine();
+  const { viewportRef, canvasRef, engineRef, telemetry, selection, rendererError, applySettings } = useViewerEngine();
   const diagnosticsService = useRef(new DiagnosticsService());
   const activeAssetRef = useRef<LoadedAsset | null>(null);
   const [asset, setAsset] = useState<LoadedAsset | null>(null);
@@ -134,12 +134,20 @@ export function App() {
   }, [commitAsset]);
 
   const openFiles = useCallback((files: File[]) => {
+    if (rendererError) {
+      setError('3D rendering is unavailable in this browser session. Enable hardware acceleration or try a current Chrome, Edge, Firefox, or Safari browser.');
+      return;
+    }
     void loadBundle(createFileBundle(files));
-  }, [loadBundle]);
+  }, [loadBundle, rendererError]);
 
   const openUrl = useCallback((url: string) => {
+    if (rendererError) {
+      setError('3D rendering is unavailable in this browser session. Enable hardware acceleration before opening a model.');
+      return;
+    }
     void loadBundle(fetchRemoteBundle(url));
-  }, [loadBundle]);
+  }, [loadBundle, rendererError]);
 
   const repair = useCallback(async (options: RepairOptions) => {
     const current = activeAssetRef.current;
@@ -243,6 +251,7 @@ export function App() {
               <h1>A 3D viewer that tells you <em>what is wrong.</em></h1>
               <p>Open complete model packages, inspect real render cost, scan topology, repair common mesh defects, and export a clean working copy. Nothing is uploaded.</p>
               <button type="button" className="sample-link" onClick={() => openFiles([createCalibrationSample()])}><Sparkles /> Try the 3-second calibration sample</button>
+              {rendererError && <div className="compatibility-notice" role="status"><strong>3D rendering is unavailable in this session.</strong><span>Your files are untouched. Enable browser hardware acceleration or switch to a current browser, then reload.</span></div>}
             </div>
             <DropZone onFiles={openFiles} onUrl={openUrl} />
             <div id="capabilities" className="capability-strip">

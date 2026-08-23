@@ -9,19 +9,26 @@ export function useViewerEngine() {
   const engineRef = useRef<ViewerEngine | null>(null);
   const [telemetry, setTelemetry] = useState<RendererTelemetry | null>(null);
   const [selection, setSelection] = useState<Object3D | null>(null);
+  const [rendererError, setRendererError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!viewportRef.current || !canvasRef.current) return;
-    const engine = new ViewerEngine(viewportRef.current, canvasRef.current);
-    engine.setTelemetryListener(setTelemetry);
-    engine.setSelectionListener(setSelection);
-    engineRef.current = engine;
+    let engine: ViewerEngine | null = null;
+    try {
+      engine = new ViewerEngine(viewportRef.current, canvasRef.current);
+      engine.setTelemetryListener(setTelemetry);
+      engine.setSelectionListener(setSelection);
+      engineRef.current = engine;
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'This browser could not create a WebGL renderer.';
+      queueMicrotask(() => setRendererError(message));
+    }
     return () => {
-      engine.dispose();
+      engine?.dispose();
       engineRef.current = null;
     };
   }, []);
 
   const applySettings = (settings: Partial<ViewerSettings>) => engineRef.current?.applySettings(settings);
-  return { viewportRef, canvasRef, engineRef, telemetry, selection, applySettings };
+  return { viewportRef, canvasRef, engineRef, telemetry, selection, rendererError, applySettings };
 }

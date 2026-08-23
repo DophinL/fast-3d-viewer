@@ -127,6 +127,9 @@
   .sample-link { align-items: center; background: none; color: var(--accent-dark); display: flex; font-size: .72rem; font-weight: 750; gap: .45rem; margin-top: 1.5rem; padding: .4rem 0; }
   .sample-link svg { height: .95rem; width: .95rem; }
   .sample-link:hover { color: var(--accent); }
+  .compatibility-notice { background: var(--warn-soft); border-left: 3px solid var(--warn); display: flex; flex-direction: column; gap: .18rem; margin-top: 1rem; max-width: 34rem; padding: .7rem .8rem; }
+  .compatibility-notice strong { font-size: .68rem; }
+  .compatibility-notice span { color: var(--ink-2); font-size: .62rem; line-height: 1.45; }
   .capability-strip { border-top: 1px solid var(--line); display: grid; gap: 1.5rem; grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); padding-top: 1.4rem; }
   .capability-strip article { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: .75rem; }
   .capability-strip strong { color: var(--accent); font-family: var(--font-editorial); font-size: 2rem; font-style: italic; font-weight: 600; grid-row: 1 / 3; line-height: .9; }
