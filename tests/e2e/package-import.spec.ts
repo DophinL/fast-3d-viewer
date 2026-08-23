@@ -45,7 +45,11 @@ test('reports a recoverable error for a package without a model', async ({ page 
 
 test('shows the registered capability matrix without loading a model', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Formats 27/i }).click();
+  const formatsButton = page.getByRole('button', { name: /Formats 27/i });
+  if (!(await formatsButton.isVisible())) {
+    await page.getByRole('button', { name: 'Toggle menu' }).click();
+  }
+  await formatsButton.click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
