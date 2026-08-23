@@ -90,6 +90,10 @@ export class ViewerEngine {
   private boundsHelper: Box3Helper | null = null;
   private selectionHelper: Box3Helper | null = null;
   private originalMaterials = new Map<string, Material | Material[]>();
+  private wireframeMaterials = new Map<string, Material | Material[]>();
+  private readonly normalMaterial = new MeshNormalMaterial({ side: DoubleSide });
+  private readonly matcapMaterial = new MeshMatcapMaterial({ color: 0xc5bdac, flatShading: false, side: DoubleSide });
+  private readonly xrayMaterial = new MeshStandardMaterial({ color: 0xc0c5c2, transparent: true, opacity: 0.28, depthWrite: false, side: DoubleSide });
   private settings = { ...DEFAULT_SETTINGS };
   private camera: PerspectiveCamera | OrthographicCamera = this.perspective;
   private animationFrame = 0;
@@ -191,7 +195,18 @@ export class ViewerEngine {
     this.mixer = null;
     this.animationAction = null;
     this.animationPlaying = false;
-    if (this.model) this.stage.remove(this.model);
+    if (this.model) {
+      this.model.traverse((child) => {
+        const owner = child as MaterialOwner;
+        const original = this.originalMaterials.get(owner.uuid);
+        if (owner.isMesh && original) owner.material = original;
+      });
+      this.stage.remove(this.model);
+    }
+    this.wireframeMaterials.forEach((owned) => {
+      for (const material of Array.isArray(owned) ? owned : [owned]) material.dispose();
+    });
+    this.wireframeMaterials.clear();
     this.model = null;
     this.originalMaterials.clear();
     this.clearSelection();
@@ -348,16 +363,24 @@ export class ViewerEngine {
       const original = this.originalMaterials.get(owner.uuid) ?? owner.material;
       if (this.settings.renderMode === 'material') {
         owner.material = original;
-        for (const material of Array.isArray(owner.material) ? owner.material : [owner.material]) (material as Material & { wireframe?: boolean }).wireframe = false;
       } else if (this.settings.renderMode === 'wireframe') {
-        owner.material = Array.isArray(original) ? original : original;
-        for (const material of Array.isArray(owner.material) ? owner.material : [owner.material]) (material as Material & { wireframe?: boolean }).wireframe = true;
+        let wireframe = this.wireframeMaterials.get(owner.uuid);
+        if (!wireframe) {
+          wireframe = (Array.isArray(original) ? original : [original]).map((material) => {
+            const clone = material.clone() as Material & { wireframe?: boolean };
+            clone.wireframe = true;
+            return clone;
+          });
+          if (!Array.isArray(original)) wireframe = wireframe[0]!;
+          this.wireframeMaterials.set(owner.uuid, wireframe);
+        }
+        owner.material = wireframe;
       } else if (this.settings.renderMode === 'normals') {
-        owner.material = new MeshNormalMaterial({ side: DoubleSide });
+        owner.material = this.normalMaterial;
       } else if (this.settings.renderMode === 'matcap') {
-        owner.material = new MeshMatcapMaterial({ color: 0xc5bdac, flatShading: false, side: DoubleSide });
+        owner.material = this.matcapMaterial;
       } else {
-        owner.material = new MeshStandardMaterial({ color: 0xc0c5c2, transparent: true, opacity: 0.28, depthWrite: false, side: DoubleSide });
+        owner.material = this.xrayMaterial;
       }
     });
   }
@@ -499,6 +522,9 @@ export class ViewerEngine {
     this.canvas.removeEventListener('dblclick', this.handleDoubleClick);
     this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
+    this.normalMaterial.dispose();
+    this.matcapMaterial.dispose();
+    this.xrayMaterial.dispose();
     this.renderer.dispose();
   }
 }
