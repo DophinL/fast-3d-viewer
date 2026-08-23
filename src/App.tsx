@@ -107,13 +107,13 @@ export function App() {
     }
   }, []);
 
-  const commitAsset = useCallback((next: LoadedAsset) => {
+  const commitAsset = useCallback((next: LoadedAsset, completedRepair: RepairResult | null = null) => {
     engineRef.current?.setModel(next.root);
     activeAssetRef.current?.cleanup();
     activeAssetRef.current = next;
     setAsset(next);
     setDiagnostics(null);
-    setRepairResult(null);
+    setRepairResult(completedRepair);
     setInspectorOpen(true);
     window.setTimeout(() => void runDiagnostics(next), 180);
   }, [engineRef, runDiagnostics]);
@@ -160,7 +160,12 @@ export function App() {
       const result = await diagnosticsService.current.repair(geometry.payloads, options);
       const root = createRepairedObject(result, `${current.stats.fileName.replace(/\.[^.]+$/, '')} repaired`);
       const sourceName = `${current.stats.fileName.replace(/\.[^.]+$/, '')}-repaired.stl`;
-      const sourceFile = new File([new Float32Array(result.positions).buffer], sourceName, { type: 'model/stl' });
+      const serialized = await exportModel(root, sourceName, {
+        format: 'stl',
+        binary: true,
+        onlyVisible: true,
+      });
+      const sourceFile = new File([serialized.blob], sourceName, { type: serialized.mimeType });
       const bundle = await createFileBundle([sourceFile]);
       const stats = inspectAsset(root, bundle, 0, result.durationMs, result.durationMs);
       const next: LoadedAsset = {
@@ -173,8 +178,7 @@ export function App() {
         parser: 'Fast native loader',
         cleanup: () => disposeObject(root),
       };
-      setRepairResult(result);
-      commitAsset(next);
+      commitAsset(next, result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
