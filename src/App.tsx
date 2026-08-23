@@ -13,7 +13,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AnimationClip } from 'three';
+import type { AnimationClip, Object3D } from 'three';
 import { DiagnosticsService } from './core/diagnostics';
 import { createFileBundle, fetchRemoteBundle } from './core/file-bundle';
 import { buildAssetIssues, collectGeometryPayloads, disposeObject, inspectAsset } from './core/inspect';
@@ -211,7 +211,10 @@ export function App() {
     setError(null);
   };
 
-  const sceneChanged = () => engineRef.current?.applySettings({});
+  const sceneChanged = (object: Object3D, visible: boolean) => {
+    object.visible = visible;
+    engineRef.current?.applySettings({});
+  };
 
   return (
     <div className={`app-shell ${asset && !inspectorOpen ? 'inspector-collapsed' : ''}`}>

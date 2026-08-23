@@ -46,7 +46,7 @@ interface InspectorProps {
   selection: Object3D | null;
   telemetry: RendererTelemetry | null;
   settings: ViewerSettings;
-  onSceneChange: () => void;
+  onSceneChange: (object: Object3D, visible: boolean) => void;
   onAnalyze: () => void;
   onRepair: (options: RepairOptions) => void;
   onExport: (request: ExportRequest) => void;
@@ -85,7 +85,7 @@ function Section({ title, icon, children, initial = true }: { title: string; ico
   );
 }
 
-function ScenePanel({ asset, selection, telemetry, onChange }: Pick<InspectorProps, 'asset' | 'selection' | 'telemetry' | 'onSceneChange'> & { onChange: () => void }) {
+function ScenePanel({ asset, selection, telemetry, onChange }: Pick<InspectorProps, 'asset' | 'selection' | 'telemetry'> & { onChange: InspectorProps['onSceneChange'] }) {
   const { stats } = asset;
   return (
     <>
@@ -256,7 +256,7 @@ export function Inspector(props: InspectorProps) {
         ))}
       </div>
       <div className="inspector-scroll">
-        {tab === 'scene' && <ScenePanel asset={props.asset} selection={props.selection} telemetry={props.telemetry} onSceneChange={props.onSceneChange} onChange={props.onSceneChange} />}
+        {tab === 'scene' && <ScenePanel asset={props.asset} selection={props.selection} telemetry={props.telemetry} onChange={props.onSceneChange} />}
         {tab === 'health' && <HealthPanel {...props} />}
         {tab === 'export' && <ExportPanel {...props} />}
         <SettingsPanel settings={props.settings} onSettings={props.onSettings} />
