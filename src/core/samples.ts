@@ -2,15 +2,15 @@ const SAMPLE_STL = `solid calibration_part
 facet normal 0 0 -1
  outer loop
   vertex -1 -1 0
-  vertex 1 -1 0
   vertex 1 1 0
+  vertex 1 -1 0
  endloop
 endfacet
 facet normal 0 0 -1
  outer loop
   vertex -1 -1 0
-  vertex 1 1 0
   vertex -1 1 0
+  vertex 1 1 0
  endloop
 endfacet
 facet normal 0 -1 0.6
