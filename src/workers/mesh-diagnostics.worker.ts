@@ -15,7 +15,7 @@ type WorkerResponse =
   | { id: string; ok: true; type: 'repair'; result: RepairResult }
   | { id: string; ok: false; error: string };
 
-const worker = self as unknown as DedicatedWorkerGlobalScope;
+const worker = typeof self === 'undefined' ? null : self as unknown as DedicatedWorkerGlobalScope;
 
 const subtract = (a: Point, b: Point): Point => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const cross = (a: Point, b: Point): Point => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
@@ -75,6 +75,7 @@ function createTopology(payloads: GeometryPayload[], requestedTolerance?: number
   const points: Point[] = [];
   const edges = new Map<string, EdgeRecord>();
   const triangles: Triangle[] = [];
+  const degenerateTriangles: Array<[Point, Point, Point]> = [];
   const faces = new Map<string, number>();
   let degenerateFaces = 0;
   let duplicateFaces = 0;
@@ -105,6 +106,7 @@ function createTopology(payloads: GeometryPayload[], requestedTolerance?: number
     const doubleArea = length(cross(subtract(b, a), subtract(c, a)));
     if (new Set(ids).size < 3 || doubleArea <= epsilon * epsilon) {
       degenerateFaces += 1;
+      degenerateTriangles.push([a, b, c]);
       return;
     }
     const faceKey = [...ids].sort((left, right) => left - right).join(':');
@@ -119,10 +121,10 @@ function createTopology(payloads: GeometryPayload[], requestedTolerance?: number
     signedVolume += dot(a, cross(b, c)) / 6;
   });
 
-  return { bounds, epsilon, points, edges, triangles, triangleCount, degenerateFaces, duplicateFaces, surfaceArea, signedVolume };
+  return { bounds, epsilon, points, edges, triangles, degenerateTriangles, triangleCount, degenerateFaces, duplicateFaces, surfaceArea, signedVolume };
 }
 
-function analyze(payloads: GeometryPayload[], scanLimited: boolean): MeshDiagnostics {
+export function analyze(payloads: GeometryPayload[], scanLimited: boolean): MeshDiagnostics {
   const startedAt = performance.now();
   if (scanLimited) {
     return {
@@ -133,6 +135,14 @@ function analyze(payloads: GeometryPayload[], scanLimited: boolean): MeshDiagnos
     };
   }
   const topology = createTopology(payloads);
+  if (topology.triangles.length === 0) {
+    return {
+      scannedTriangles: 0, uniqueVertices: topology.points.length, boundaryEdges: 0, nonManifoldEdges: 0, inconsistentEdges: 0,
+      degenerateFaces: topology.degenerateFaces, duplicateFaces: 0, isolatedFaces: 0, surfaceArea: 0, signedVolume: 0,
+      watertight: false, durationMs: Math.round(performance.now() - startedAt), scanLimited: false,
+      issues: [{ code: 'empty-geometry', severity: 'error', title: 'No usable triangles', detail: 'The scene contains no triangle surface that can be checked.', fix: 'Choose a mesh asset or confirm that the parser produced geometry.' }],
+    };
+  }
   let boundaryEdges = 0;
   let nonManifoldEdges = 0;
   let inconsistentEdges = 0;
@@ -222,7 +232,7 @@ function isPlanarEnough(points: Point[], tolerance: number): boolean {
   return points.every((point) => Math.abs(dot(subtract(point, origin), normal)) <= tolerance * 4);
 }
 
-function repair(payloads: GeometryPayload[], options: RepairOptions): RepairResult {
+export function repair(payloads: GeometryPayload[], options: RepairOptions): RepairResult {
   const startedAt = performance.now();
   const topology = createTopology(payloads, options.mergeTolerance > 0 ? options.mergeTolerance : undefined);
   const faceKeys = new Set<string>();
@@ -237,6 +247,11 @@ function repair(payloads: GeometryPayload[], options: RepairOptions): RepairResu
     const area = length(cross(subtract(b, a), subtract(c, a))) / 2;
     if (options.removeDegenerate && area <= topology.epsilon * topology.epsilon) { removedFaces += 1; continue; }
     output.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  }
+  if (!options.removeDegenerate) {
+    for (const [a, b, c] of topology.degenerateTriangles) {
+      output.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+    }
   }
   removedFaces += options.removeDegenerate ? topology.degenerateFaces : 0;
 
@@ -282,7 +297,7 @@ function repair(payloads: GeometryPayload[], options: RepairOptions): RepairResu
   };
 }
 
-worker.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
+worker?.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
   try {
     if (request.type === 'analyze') {
