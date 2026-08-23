@@ -126,7 +126,6 @@ export interface RepairOptions {
   mergeTolerance: number;
   fillSimpleHoles: boolean;
   maxHoleEdges: number;
-  recalculateNormals: boolean;
   centerGeometry: boolean;
 }
 
@@ -162,7 +161,6 @@ export interface ViewerSettings {
   showGrid: boolean;
   showAxes: boolean;
   showBounds: boolean;
-  showStats: boolean;
   autoRotate: boolean;
   autoRotateSpeed: number;
   shadows: boolean;

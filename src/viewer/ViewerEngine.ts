@@ -35,6 +35,7 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import type { RendererTelemetry, ViewerSettings } from '../core/types';
+import { DEFAULT_VIEWER_SETTINGS } from '../core/settings';
 
 declare module 'three' {
   interface BufferGeometry {
@@ -44,24 +45,6 @@ declare module 'three' {
 }
 
 Mesh.prototype.raycast = acceleratedRaycast;
-
-const DEFAULT_SETTINGS: ViewerSettings = {
-  renderMode: 'material',
-  background: '#dcd8cd',
-  environmentIntensity: 0.8,
-  keyLightIntensity: 3.2,
-  exposure: 1,
-  toneMapping: 'neutral',
-  showGrid: true,
-  showAxes: false,
-  showBounds: false,
-  showStats: true,
-  autoRotate: false,
-  autoRotateSpeed: 1.4,
-  shadows: true,
-  transparentBackground: false,
-  adaptiveQuality: true,
-};
 
 type MaterialOwner = Object3D & { isMesh?: boolean; material?: Material | Material[] };
 
@@ -94,7 +77,7 @@ export class ViewerEngine {
   private readonly normalMaterial = new MeshNormalMaterial({ side: DoubleSide });
   private readonly matcapMaterial = new MeshMatcapMaterial({ color: 0xc5bdac, flatShading: false, side: DoubleSide });
   private readonly xrayMaterial = new MeshStandardMaterial({ color: 0xc0c5c2, transparent: true, opacity: 0.28, depthWrite: false, side: DoubleSide });
-  private settings = { ...DEFAULT_SETTINGS };
+  private settings = { ...DEFAULT_VIEWER_SETTINGS };
   private camera: PerspectiveCamera | OrthographicCamera = this.perspective;
   private animationFrame = 0;
   private invalidated = true;

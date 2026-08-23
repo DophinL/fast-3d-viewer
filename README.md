@@ -31,7 +31,7 @@ The app is a static Vite build. No API keys, database, or server are required.
 
 ## Format coverage
 
-The registry currently exposes **27 format families** and 39 filename extensions.
+The registry currently exposes **27 format families** and 35 filename extensions.
 
 | Family | Formats |
 | --- | --- |

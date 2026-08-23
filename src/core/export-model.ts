@@ -21,9 +21,11 @@ const baseName = (name: string): string => name.replace(/\.[^.]+$/, '').replace(
 function cloneVisible(root: Object3D, onlyVisible: boolean): Object3D {
   if (!onlyVisible) return root;
   const clone = root.clone(true);
+  const hidden: Object3D[] = [];
   clone.traverse((object) => {
-    if (!object.visible) object.removeFromParent();
+    if (!object.visible) hidden.push(object);
   });
+  hidden.forEach((object) => object.removeFromParent());
   return clone;
 }
 

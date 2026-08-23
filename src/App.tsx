@@ -20,7 +20,8 @@ import { buildAssetIssues, collectGeometryPayloads, disposeObject, inspectAsset 
 import { loadModel } from './core/load-model';
 import { createCalibrationSample } from './core/samples';
 import { createRepairedObject, downloadExport, exportModel } from './core/export-model';
-import { findFormat } from './core/formats';
+import { findFormat, FORMAT_DEFINITIONS } from './core/formats';
+import { DEFAULT_VIEWER_SETTINGS } from './core/settings';
 import type {
   ExportRequest,
   LoadedAsset,
@@ -37,24 +38,6 @@ import { LoadingOverlay } from './components/LoadingOverlay';
 import { StatusBar } from './components/StatusBar';
 import { ViewerToolbar } from './components/ViewerToolbar';
 import { useViewerEngine } from './hooks/useViewerEngine';
-
-const INITIAL_SETTINGS: ViewerSettings = {
-  renderMode: 'material',
-  background: '#dcd8cd',
-  environmentIntensity: 0.8,
-  keyLightIntensity: 3.2,
-  exposure: 1,
-  toneMapping: 'neutral',
-  showGrid: true,
-  showAxes: false,
-  showBounds: false,
-  showStats: true,
-  autoRotate: false,
-  autoRotateSpeed: 1.4,
-  shadows: true,
-  transparentBackground: false,
-  adaptiveQuality: true,
-};
 
 function downloadDataUrl(url: string, name: string): void {
   const anchor = document.createElement('a');
@@ -76,7 +59,7 @@ export function App() {
   const [repairResult, setRepairResult] = useState<RepairResult | null>(null);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
   const [animationPlaying, setAnimationPlaying] = useState(false);
-  const [settings, setSettings] = useState<ViewerSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<ViewerSettings>(() => ({ ...DEFAULT_VIEWER_SETTINGS }));
   const [formatDrawer, setFormatDrawer] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -87,11 +70,8 @@ export function App() {
   }, []);
 
   const updateSettings = useCallback((next: Partial<ViewerSettings>) => {
-    setSettings((current) => {
-      const merged = { ...current, ...next };
-      applySettings(next);
-      return merged;
-    });
+    setSettings((current) => ({ ...current, ...next }));
+    applySettings(next);
   }, [applySettings]);
 
   const runDiagnostics = useCallback(async (target = activeAssetRef.current) => {
@@ -239,7 +219,7 @@ export function App() {
           <span><strong>FAST</strong><em>3D VIEWER</em></span>
         </a>
         <nav className={mobileMenu ? 'is-open' : ''} aria-label="Primary navigation">
-          <button type="button" onClick={() => setFormatDrawer(true)}>Formats <span>27</span></button>
+          <button type="button" onClick={() => setFormatDrawer(true)}>Formats <span>{FORMAT_DEFINITIONS.length}</span></button>
           <a href="#capabilities">Capabilities</a>
           <a href="https://github.com/DophinL/fast-3d-viewer#readme" target="_blank" rel="noreferrer">Docs <ArrowUpRight /></a>
         </nav>
@@ -262,7 +242,7 @@ export function App() {
             </div>
             <DropZone onFiles={openFiles} onUrl={openUrl} />
             <div id="capabilities" className="capability-strip">
-              <article><strong>27</strong><span>format families</span><p>CAD, BIM, print, web, point clouds, and toolpaths.</p></article>
+              <article><strong>{FORMAT_DEFINITIONS.length}</strong><span>format families</span><p>CAD, BIM, print, web, point clouds, and toolpaths.</p></article>
               <article><strong>0</strong><span>server uploads</span><p>Parsing, diagnosis, repair, and export run locally.</p></article>
               <article><strong>&lt; 17 ms</strong><span>frame target</span><p>Adaptive pixel ratio and render-on-demand protect interaction.</p></article>
             </div>

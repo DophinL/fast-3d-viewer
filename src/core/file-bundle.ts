@@ -1,16 +1,12 @@
 import { unzipSync } from 'fflate';
-import { findFormat, getExtension, isSupportedFile } from './formats';
+import { findFormat, FORMAT_DEFINITIONS, getExtension, isSupportedFile } from './formats';
 import type { FileBundle, FileEntry } from './types';
 
 const MAX_ARCHIVE_FILES = 1_024;
 const MAX_ARCHIVE_ENTRY_BYTES = 256 * 1024 * 1024;
 const MAX_ARCHIVE_EXPANDED_BYTES = 512 * 1024 * 1024;
 
-const MAIN_FILE_PRIORITY = [
-  'glb', 'gltf', 'fbx', 'obj', 'usdz', 'step', 'stp', 'iges', 'igs', 'brep', '3dm',
-  'fcstd', 'ifc', '3mf', 'stl', 'ply', 'dae', '3ds', 'wrl', 'vrml', 'vox', 'ldr',
-  'mpd', 'pcd', 'vtk', 'vtp', 'xyz', 'gcode', 'md2',
-];
+const MAIN_FILE_PRIORITY = ['glb', ...FORMAT_DEFINITIONS.flatMap((format) => format.extensions).filter((extension) => extension !== 'glb')];
 
 const normalizePath = (path: string) => path
   .replaceAll('\\', '/')

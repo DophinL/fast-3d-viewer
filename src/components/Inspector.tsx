@@ -155,7 +155,6 @@ function HealthPanel({ asset, diagnostics, diagnosticsBusy, repairBusy, repairRe
     mergeTolerance: 0,
     fillSimpleHoles: true,
     maxHoleEdges: 128,
-    recalculateNormals: true,
     centerGeometry: false,
   });
   const issues = [...asset.issues, ...(diagnostics?.issues ?? [])];
