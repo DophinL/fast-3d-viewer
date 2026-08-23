@@ -426,7 +426,6 @@
     .drop-zone__actions .button--quiet { grid-column: 1 / -1; }
     .drop-zone__footnotes { flex-direction: column; gap: .4rem; }
     .capability-strip strong { font-size: 1.7rem; }
-    .tool-group:first-child, .tool-separator:first-of-type { display: none; }
     .viewer-toolbar { top: .55rem; }
     .viewport-badge { bottom: .55rem; left: .55rem; }
     .replace-button { bottom: .55rem; right: .55rem; }
