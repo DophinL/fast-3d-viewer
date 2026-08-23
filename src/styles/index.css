@@ -138,9 +138,9 @@
   .format-ribbon { align-items: center; display: flex; gap: .5rem; grid-column: 1 / -1; justify-content: space-between; overflow: hidden; }
   .format-ribbon span { color: var(--ink-3); font-size: .58rem; font-weight: 760; letter-spacing: .1em; white-space: nowrap; }
   .workbench { display: none; height: 100%; min-height: 0; position: relative; }
-  .workbench.has-asset { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; }
+  .workbench.has-asset { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
   .inspector-collapsed .workbench.has-asset { grid-template-columns: minmax(0, 1fr); }
-  .viewer-column { display: grid; grid-template-rows: minmax(0, 1fr) 2rem; min-width: 0; }
+  .viewer-column { display: grid; grid-template-rows: minmax(0, 1fr) 2rem; height: 100%; min-height: 0; min-width: 0; }
   .viewport { background: var(--paper-2); min-height: 0; overflow: hidden; position: relative; }
   .viewport canvas { height: 100%; touch-action: none; width: 100%; }
 }
