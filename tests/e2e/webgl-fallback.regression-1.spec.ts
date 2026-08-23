@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 test('keeps the landing page usable when WebGL cannot initialize', async ({ page }) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function getContext(type: string, ...args: unknown[]) {
+    HTMLCanvasElement.prototype.getContext = function getContext(this: HTMLCanvasElement, type: string, ...args: unknown[]) {
       if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') return null;
       return original.call(this, type as never, ...(args as []));
     } as typeof HTMLCanvasElement.prototype.getContext;
