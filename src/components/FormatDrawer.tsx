@@ -7,7 +7,13 @@ export function FormatDrawer({ open, onClose }: { open: boolean; onClose: () => 
     return result;
   }, {});
   return (
-    <aside className={`format-drawer ${open ? 'is-open' : ''}`} aria-hidden={!open}>
+    <aside
+      className={`format-drawer ${open ? 'is-open' : ''}`}
+      role="dialog"
+      aria-label="Supported 3D formats"
+      aria-modal="true"
+      aria-hidden={!open}
+    >
       <header>
         <div><p className="eyebrow">FORMAT MATRIX</p><h2>{FORMAT_DEFINITIONS.length} format families, honest package support.</h2></div>
         <button type="button" aria-label="Close format list" onClick={onClose}><X /></button>
