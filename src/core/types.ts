@@ -1,4 +1,4 @@
-import type { Object3D } from 'three';
+import type { AnimationClip, Object3D } from 'three';
 
 export type LoadPhase =
   | 'idle'
@@ -142,7 +142,7 @@ export interface RepairResult {
 
 export interface LoadedAsset {
   root: Object3D;
-  animations: unknown[];
+  animations: AnimationClip[];
   bundle: FileBundle;
   format: FormatDefinition;
   stats: AssetStats;

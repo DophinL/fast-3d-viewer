@@ -51,4 +51,8 @@ test('uses the fast glTF path and retains animation clips', async ({ page }) => 
   await expect(page.locator('.viewport-badge')).toContainText('animated-triangle.gltf', { timeout: 20_000 });
   await expect(page.getByText('Fast native loader', { exact: true })).toBeVisible();
   await expect(page.getByText('Animations').locator('..').getByText('1', { exact: true })).toBeVisible();
+  const play = page.getByRole('button', { name: 'Play animation' });
+  await expect(play).toBeVisible();
+  await play.click();
+  await expect(page.getByRole('button', { name: 'Pause animation' })).toHaveAttribute('aria-pressed', 'true');
 });

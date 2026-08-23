@@ -13,7 +13,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AnimationClip, Object3D } from 'three';
+import type { Object3D } from 'three';
 import { DiagnosticsService } from './core/diagnostics';
 import { createFileBundle, fetchRemoteBundle } from './core/file-bundle';
 import { buildAssetIssues, collectGeometryPayloads, disposeObject, inspectAsset } from './core/inspect';
@@ -75,6 +75,7 @@ export function App() {
   const [repairBusy, setRepairBusy] = useState(false);
   const [repairResult, setRepairResult] = useState<RepairResult | null>(null);
   const [exportBusy, setExportBusy] = useState<string | null>(null);
+  const [animationPlaying, setAnimationPlaying] = useState(false);
   const [settings, setSettings] = useState<ViewerSettings>(INITIAL_SETTINGS);
   const [formatDrawer, setFormatDrawer] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
@@ -108,12 +109,13 @@ export function App() {
   }, []);
 
   const commitAsset = useCallback((next: LoadedAsset, completedRepair: RepairResult | null = null) => {
-    engineRef.current?.setModel(next.root);
+    engineRef.current?.setModel(next.root, next.animations);
     activeAssetRef.current?.cleanup();
     activeAssetRef.current = next;
     setAsset(next);
     setDiagnostics(null);
     setRepairResult(completedRepair);
+    setAnimationPlaying(false);
     setInspectorOpen(true);
     window.setTimeout(() => void runDiagnostics(next), 180);
   }, [engineRef, runDiagnostics]);
@@ -192,7 +194,7 @@ export function App() {
     setExportBusy(request.format);
     setError(null);
     try {
-      const result = await exportModel(current.root, current.stats.fileName, request, current.animations as AnimationClip[]);
+      const result = await exportModel(current.root, current.stats.fileName, request, current.animations);
       downloadExport(result);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -220,6 +222,7 @@ export function App() {
     setAsset(null);
     setDiagnostics(null);
     setRepairResult(null);
+    setAnimationPlaying(false);
     setError(null);
   };
 
@@ -273,7 +276,16 @@ export function App() {
           <div className="viewer-column">
             <div ref={viewportRef} className="viewport">
               <canvas ref={canvasRef} aria-label="Interactive 3D viewport" />
-              {asset && <ViewerToolbar engineRef={engineRef} settings={settings} updateSettings={updateSettings} onSnapshot={snapshot} onFullscreen={() => void fullscreen()} />}
+              {asset && <ViewerToolbar
+                engineRef={engineRef}
+                settings={settings}
+                updateSettings={updateSettings}
+                onSnapshot={snapshot}
+                onFullscreen={() => void fullscreen()}
+                hasAnimations={asset.animations.length > 0}
+                animationPlaying={animationPlaying}
+                onToggleAnimation={() => setAnimationPlaying(engineRef.current?.toggleAnimation() ?? false)}
+              />}
               {progress && <LoadingOverlay progress={progress} />}
               {asset && <div className="viewport-badge"><span>{asset.stats.format}</span><strong>{asset.stats.fileName}</strong></div>}
               {asset && <button className="replace-button" type="button" onClick={reset}><Plus /> Open another</button>}

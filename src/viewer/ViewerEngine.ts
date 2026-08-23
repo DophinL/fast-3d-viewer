@@ -2,6 +2,7 @@ import {
   ACESFilmicToneMapping,
   AgXToneMapping,
   AmbientLight,
+  AnimationMixer,
   AxesHelper,
   Box3,
   Box3Helper,
@@ -28,6 +29,8 @@ import {
   Vector3,
   WebGLRenderer,
   type Material,
+  type AnimationAction,
+  type AnimationClip,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
@@ -81,6 +84,9 @@ export class ViewerEngine {
   private readonly fillLight = new DirectionalLight(0xcad7dd, 1.3);
   private readonly resizeObserver: ResizeObserver;
   private model: Object3D | null = null;
+  private mixer: AnimationMixer | null = null;
+  private animationAction: AnimationAction | null = null;
+  private animationPlaying = false;
   private boundsHelper: Box3Helper | null = null;
   private selectionHelper: Box3Helper | null = null;
   private originalMaterials = new Map<string, Material | Material[]>();
@@ -154,10 +160,14 @@ export class ViewerEngine {
     this.onSelection = listener;
   }
 
-  setModel(root: Object3D): void {
+  setModel(root: Object3D, animations: AnimationClip[] = []): void {
     this.clearModel();
     this.model = root;
     this.stage.add(root);
+    if (animations.length > 0) {
+      this.mixer = new AnimationMixer(root);
+      this.animationAction = this.mixer.clipAction(animations[0]!);
+    }
     root.traverse((child) => {
       const mesh = child as Mesh;
       if (!mesh.isMesh) return;
@@ -174,6 +184,13 @@ export class ViewerEngine {
   }
 
   clearModel(): void {
+    if (this.mixer && this.model) {
+      this.mixer.stopAllAction();
+      this.mixer.uncacheRoot(this.model);
+    }
+    this.mixer = null;
+    this.animationAction = null;
+    this.animationPlaying = false;
     if (this.model) this.stage.remove(this.model);
     this.model = null;
     this.originalMaterials.clear();
@@ -193,7 +210,7 @@ export class ViewerEngine {
     this.axes.visible = this.settings.showAxes;
     this.controls.autoRotate = this.settings.autoRotate;
     this.controls.autoRotateSpeed = this.settings.autoRotateSpeed;
-    this.forceContinuous = this.settings.autoRotate;
+    this.forceContinuous = this.settings.autoRotate || this.animationPlaying;
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.keyLight.intensity = this.settings.keyLightIntensity;
     this.hemisphere.intensity = 1.2 * this.settings.environmentIntensity;
@@ -213,6 +230,20 @@ export class ViewerEngine {
 
   getSettings(): ViewerSettings {
     return { ...this.settings };
+  }
+
+  toggleAnimation(): boolean {
+    if (!this.mixer || !this.animationAction) return false;
+    this.animationPlaying = !this.animationPlaying;
+    if (this.animationPlaying) {
+      if (!this.animationAction.isRunning()) this.animationAction.play();
+      this.mixer.timeScale = 1;
+    } else {
+      this.mixer.timeScale = 0;
+    }
+    this.forceContinuous = this.settings.autoRotate || this.animationPlaying;
+    this.invalidate();
+    return this.animationPlaying;
   }
 
   setProjection(mode: 'perspective' | 'orthographic'): void {
@@ -376,7 +407,7 @@ export class ViewerEngine {
 
   private handleDoubleClick = (): void => this.fitToView(true);
   private handleControlStart = (): void => { this.forceContinuous = true; this.invalidate(); };
-  private handleControlEnd = (): void => { this.forceContinuous = this.settings.autoRotate; this.invalidate(); };
+  private handleControlEnd = (): void => { this.forceContinuous = this.settings.autoRotate || this.animationPlaying; this.invalidate(); };
   private handleContextLost = (event: Event): void => { event.preventDefault(); this.forceContinuous = false; };
   private handleContextRestored = (): void => { this.applySettings(this.settings); this.invalidate(); };
 
@@ -408,6 +439,7 @@ export class ViewerEngine {
     this.lastTickAt = now;
     if (this.forceContinuous) {
       this.controls.update(delta);
+      if (this.animationPlaying && this.mixer) this.mixer.update(delta);
       this.invalidated = true;
     }
     if (this.invalidated) {

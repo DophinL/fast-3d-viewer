@@ -7,6 +7,8 @@ import {
   Expand,
   Focus,
   Grid3X3,
+  Pause,
+  Play,
   Rotate3D,
   Scan,
   SunMedium,
@@ -22,9 +24,12 @@ interface ViewerToolbarProps {
   updateSettings: (settings: Partial<ViewerSettings>) => void;
   onSnapshot: () => void;
   onFullscreen: () => void;
+  hasAnimations: boolean;
+  animationPlaying: boolean;
+  onToggleAnimation: () => void;
 }
 
-export function ViewerToolbar({ engineRef, settings, updateSettings, onSnapshot, onFullscreen }: ViewerToolbarProps) {
+export function ViewerToolbar({ engineRef, settings, updateSettings, onSnapshot, onFullscreen, hasAnimations, animationPlaying, onToggleAnimation }: ViewerToolbarProps) {
   return (
     <nav className="viewer-toolbar" aria-label="Viewer controls">
       <div className="tool-group">
@@ -45,6 +50,7 @@ export function ViewerToolbar({ engineRef, settings, updateSettings, onSnapshot,
         <IconButton label="Toggle axes" icon={<CircleDot />} active={settings.showAxes} onClick={() => updateSettings({ showAxes: !settings.showAxes })} />
         <IconButton label="Show bounds" icon={<Scan />} active={settings.showBounds} onClick={() => updateSettings({ showBounds: !settings.showBounds })} />
         <IconButton label="Auto rotate" icon={<Rotate3D />} active={settings.autoRotate} onClick={() => updateSettings({ autoRotate: !settings.autoRotate })} />
+        {hasAnimations && <IconButton label={animationPlaying ? 'Pause animation' : 'Play animation'} icon={animationPlaying ? <Pause /> : <Play />} active={animationPlaying} onClick={onToggleAnimation} />}
       </div>
       <div className="tool-separator" />
       <div className="tool-group">

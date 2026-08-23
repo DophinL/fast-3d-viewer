@@ -55,6 +55,7 @@ Format support is not one boolean. Animation, materials, package companions, sem
 - PNG snapshots and fullscreen mode
 - Scene tree visibility controls and click selection
 - Animation discovery and asset statistics
+- Play and pause the first retained animation clip from the viewport toolbar
 
 ### Diagnose
 
@@ -166,4 +167,3 @@ Files are processed locally by the published app. URL imports are fetched direct
 ## License and attribution
 
 Fast 3D Viewer is MIT licensed. The vendored Online3DViewer source remains under its original MIT license and is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
