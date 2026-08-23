@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { Buffer } from 'node:buffer';
 
 test('opens an OBJ and MTL together as one local package', async ({ page }) => {
   await page.goto('/');
