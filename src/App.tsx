@@ -85,7 +85,9 @@ export function App() {
       const result = await diagnosticsService.current.analyze(geometry.payloads, geometry.scanLimited);
       if (activeAssetRef.current === target) setDiagnostics(result);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (activeAssetRef.current === target && !(reason instanceof Error && reason.message === 'Mesh diagnostics were cancelled.')) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
     } finally {
       setDiagnosticsBusy(false);
     }
@@ -106,6 +108,7 @@ export function App() {
     if (activeLoadAbort.current !== controller) activeLoadAbort.current?.abort();
     activeLoadAbort.current = controller;
     const generation = ++operationGeneration.current;
+    diagnosticsService.current.dispose();
     setError(null);
     setProgress({ phase: 'reading', progress: 0.03, label: 'Preparing model package' });
     try {
@@ -237,6 +240,7 @@ export function App() {
     operationGeneration.current += 1;
     activeLoadAbort.current?.abort();
     activeLoadAbort.current = null;
+    diagnosticsService.current.dispose();
     activeAssetRef.current?.cleanup();
     activeAssetRef.current = null;
     engineRef.current?.clearModel();
