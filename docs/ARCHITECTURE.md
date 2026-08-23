@@ -34,6 +34,8 @@ Remote URL intake also retains the source directory as `remoteBaseUrl`, so relat
 
 The vendored backend currently resolves several companion types by basename. Packages containing different nested files with the same basename are therefore an acknowledged ambiguity. A future backend adapter should expose a path-preserving virtual filesystem rather than flattening those names.
 
+The production build copies Three.js Draco decoder assets into `dist/draco`. Compressed glTF decoding therefore stays on the same static origin and does not depend on a third-party decoder CDN.
+
 ## Loader ownership
 
 The format registry declares facts; it does not import parser code. `load-model.ts` routes at runtime:

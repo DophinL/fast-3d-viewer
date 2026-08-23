@@ -71,7 +71,7 @@ async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Pro
         import('three/examples/jsm/libs/meshopt_decoder.module.js'),
       ]);
       const draco = new DRACOLoader(resources.manager);
-      draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+      draco.setDecoderPath(new URL('./draco/', document.baseURI).toString());
       const loader = new GLTFLoader(resources.manager).setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
       const input = extension === 'glb' ? await readBuffer(file) : await readText(file);
       const parsed = await new Promise<Awaited<ReturnType<typeof loader.parseAsync>>>((resolve, reject) => {
