@@ -31,7 +31,12 @@ export interface SharedViewerState {
 }
 
 const MAX_STATE_BYTES = 24_000;
+const MAX_ANNOTATIONS = 200;
 const allowedProtocols = new Set(['http:', 'https:']);
+const renderModes = new Set(['material', 'matcap', 'normals', 'wireframe', 'xray']);
+const toneMappings = new Set(['neutral', 'aces', 'agx', 'linear']);
+const clippingAxes = new Set(['x', 'y', 'z']);
+const measurementUnits = new Set(['unit', 'millimeter', 'centimeter', 'meter', 'inch', 'foot']);
 
 export function validateRemoteModelUrl(value: string): string {
   const url = new URL(value);
@@ -59,6 +64,15 @@ function finiteTuple(value: unknown, length: number): value is number[] {
   return Array.isArray(value) && value.length === length && value.every((item) => typeof item === 'number' && Number.isFinite(item));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validAnnotation(value: unknown): value is ModelAnnotation {
+  if (!isRecord(value) || typeof value.id !== 'string' || value.id.length > 128 || typeof value.label !== 'string' || value.label.length > 500 || typeof value.createdAt !== 'string' || value.createdAt.length > 64) return false;
+  return isRecord(value.point) && finiteTuple([value.point.x, value.point.y, value.point.z], 3);
+}
+
 export function encodeViewerState(state: SharedViewerState): string {
   const serialized = JSON.stringify(state);
   if (new TextEncoder().encode(serialized).byteLength > MAX_STATE_BYTES) {
@@ -72,10 +86,23 @@ export function decodeViewerState(encoded: string): SharedViewerState {
   const parsed = JSON.parse(decodeBase64Url(encoded)) as Partial<SharedViewerState>;
   if (parsed.version !== 1 || typeof parsed.modelUrl !== 'string') throw new Error('This share link uses an unsupported view-state version.');
   validateRemoteModelUrl(parsed.modelUrl);
-  if (!parsed.camera || !finiteTuple(parsed.camera.position, 3) || !finiteTuple(parsed.camera.target, 3) || !finiteTuple(parsed.camera.up, 3)) {
+  if (!parsed.camera || !['perspective', 'orthographic'].includes(parsed.camera.projection) || !finiteTuple(parsed.camera.position, 3) || !finiteTuple(parsed.camera.target, 3) || !finiteTuple(parsed.camera.up, 3) || (parsed.camera.orthographicZoom !== undefined && (typeof parsed.camera.orthographicZoom !== 'number' || !Number.isFinite(parsed.camera.orthographicZoom) || parsed.camera.orthographicZoom <= 0))) {
     throw new Error('The shared camera state is invalid.');
   }
-  if (!parsed.settings || !parsed.clipping || !Array.isArray(parsed.annotations)) throw new Error('The shared viewer state is incomplete.');
+  if (parsed.transform !== null && (!parsed.transform || !finiteTuple(parsed.transform.position, 3) || !finiteTuple(parsed.transform.quaternion, 4) || !finiteTuple(parsed.transform.scale, 3))) {
+    throw new Error('The shared model transform is invalid.');
+  }
+  const settings = parsed.settings;
+  if (!settings || !renderModes.has(settings.renderMode) || typeof settings.background !== 'string' || !/^#[0-9a-f]{6}$/i.test(settings.background) || typeof settings.showGrid !== 'boolean' || typeof settings.showAxes !== 'boolean' || typeof settings.shadows !== 'boolean' || !toneMappings.has(settings.toneMapping) || typeof settings.exposure !== 'number' || !Number.isFinite(settings.exposure) || settings.exposure < 0 || settings.exposure > 10) {
+    throw new Error('The shared viewer settings are invalid.');
+  }
+  const clipping = parsed.clipping;
+  if (!clipping || typeof clipping.enabled !== 'boolean' || !clippingAxes.has(clipping.axis) || typeof clipping.position !== 'number' || !Number.isFinite(clipping.position) || clipping.position < 0 || clipping.position > 1 || typeof clipping.inverted !== 'boolean') {
+    throw new Error('The shared clipping state is invalid.');
+  }
+  if (!measurementUnits.has(parsed.measurementUnit ?? '') || !Array.isArray(parsed.annotations) || parsed.annotations.length > MAX_ANNOTATIONS || !parsed.annotations.every(validAnnotation)) {
+    throw new Error('The shared annotations or measurement unit are invalid.');
+  }
   return parsed as SharedViewerState;
 }
 

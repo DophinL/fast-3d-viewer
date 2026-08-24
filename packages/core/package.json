@@ -1,6 +1,6 @@
 {
   "name": "@fast-3d-viewer/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Browser SDK for Modern 3D Workbench",
   "license": "MIT",
   "type": "module",

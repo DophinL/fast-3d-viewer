@@ -29,4 +29,11 @@ describe('shared viewer state', () => {
     const invalid = { ...state, modelUrl: 'file:///secret/model.glb' };
     expect(() => decodeViewerState(encodeViewerState(invalid))).toThrow(/HTTP and HTTPS/i);
   });
+
+  it('rejects malformed settings, clipping, transforms, and annotations from untrusted links', () => {
+    expect(() => decodeViewerState(encodeViewerState({ ...state, settings: { ...state.settings, exposure: 99 } }))).toThrow(/settings/i);
+    expect(() => decodeViewerState(encodeViewerState({ ...state, clipping: { ...state.clipping, position: -1 } }))).toThrow(/clipping/i);
+    expect(() => decodeViewerState(encodeViewerState({ ...state, transform: { ...state.transform!, scale: [1, Number.POSITIVE_INFINITY, 1] } }))).toThrow(/transform/i);
+    expect(() => decodeViewerState(encodeViewerState({ ...state, annotations: [{ ...state.annotations[0]!, point: { x: 1, y: Number.NaN, z: 3 } }] }))).toThrow(/annotations/i);
+  });
 });

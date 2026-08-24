@@ -11,7 +11,7 @@ await viewer.openUrl('https://assets.example.com/model.glb');
 viewer.fitToView();
 ```
 
-Version 0.1.0 supports extracted multi-file packages. ZIP loading in the SDK still requires a separately hosted archive worker; the full workbench application already includes that worker.
+Version 0.2.0 supports extracted multi-file packages. ZIP loading in the SDK still requires a separately hosted archive worker; the full workbench application already includes that worker.
 
 ## Runtime assets
 

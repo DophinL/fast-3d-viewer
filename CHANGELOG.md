@@ -2,6 +2,28 @@
 
 All notable changes are documented here. The project follows semantic versioning once the public API stabilizes.
 
+## 0.2.0 - 2026-08-25
+
+### Added
+
+- Open IFC and DotBIM assets locally, with the IFC runtime and WebAssembly served from the viewer's own origin.
+- Measure distances, angles, and radii; add scene annotations; inspect the orientation cube; and clip models along each axis.
+- Share validated, size-bounded view state without uploading the source model.
+- Use buildable core, React, and Web Component SDK packages, plus a configurable static embed page.
+- Discover dedicated STL, OBJ, GLB, STEP, benchmark, and embed pages with route-specific metadata.
+- Run a reproducible local parser benchmark for representative STL, OBJ, and DotBIM fixtures.
+
+### Changed
+
+- Reframed the product as Modern 3D Workbench while retaining the `fast-3d-viewer` repository and package namespace.
+- Expanded the workbench layout, model tools, format registry, documentation, test fixtures, and production browser coverage.
+- Pinned Web-IFC exactly so the documented self-hosted runtime remains reproducible.
+
+### Fixed
+
+- Kept the compact model-tools panel above the mobile inspector so measurement and clipping controls remain clickable.
+- Made the IFC browser regression inspect the visible scene panel instead of matching hidden responsive content.
+
 ## 0.1.0 - 2026-08-24
 
 ### Added

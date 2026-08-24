@@ -68,7 +68,9 @@ export class Modern3DViewerElement extends HTMLElement {
     try {
       await this.viewer.openUrl(this.src, this.abort.signal);
     } catch (reason) {
-      if (!(reason instanceof DOMException && reason.name === 'AbortError')) throw reason;
+      // Modern3DViewer already exposes non-abort failures through viewer-error.
+      // Attribute changes are fire-and-forget, so do not create an unhandled rejection.
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
     }
   }
 

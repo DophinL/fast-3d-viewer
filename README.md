@@ -99,7 +99,7 @@ Exports represent the parsed render scene. They are not semantic CAD conversion:
 
 Modern 3D Workbench does **not** import or wrap Online3DViewer. The application has its own viewer lifecycle, format registry, file-package layer, diagnostics, repair, measurement, clipping, view-state, SDK, and export flows. It uses narrow, format-specific open-source dependencies such as Three.js example loaders, `rhino3dm`, and a direct `occt-import-js` worker adapter.
 
-| Capability | Modern 3D Workbench 0.1 |
+| Capability | Modern 3D Workbench 0.2 |
 | --- | --- |
 | Format registry | 26 independently maintained format families; maturity varies by fixture depth |
 | Folder / multi-file / ZIP intake | Folder, multi-file, ZIP, normalized package index |
@@ -130,7 +130,7 @@ await viewer.openUrl('https://assets.example.com/model.glb');
 viewer.setInteractionMode('distance');
 ```
 
-The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.1 packages are buildable and dry-pack testable but have not yet been published to npm.
+The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.2 packages are buildable and dry-pack testable but have not yet been published to npm.
 
 ## Architecture
 

@@ -81,7 +81,7 @@ export class Modern3DViewer {
     this.assertActive();
     const list = [...files];
     if (list.some((file) => file.name.toLowerCase().endsWith('.zip'))) {
-      throw new Error('ZIP packages require the optional SDK archive worker, which is not part of the 0.1.0 core bundle. Pass extracted package files instead.');
+      throw new Error('ZIP packages require the optional SDK archive worker, which is not part of the 0.2.0 core bundle. Pass extracted package files instead.');
     }
     return this.openBundle(createFileBundle(list));
   }
@@ -146,7 +146,7 @@ export class Modern3DViewer {
       return loaded;
     } catch (reason) {
       const error = reason instanceof Error ? reason : new Error(String(reason));
-      this.emit('error', error);
+      if (!(error instanceof DOMException && error.name === 'AbortError')) this.emit('error', error);
       throw error;
     }
   }

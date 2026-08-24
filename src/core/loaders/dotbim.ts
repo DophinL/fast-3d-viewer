@@ -198,6 +198,7 @@ export function parseDotBim(source: string): DotBimParseResult {
   }
 
   const root = new Group();
+  const usedTemplates = new Set<number>();
   root.name = 'DotBIM model';
   root.userData.schemaVersion = document.schema_version;
   root.userData.info = document.info ?? {};
@@ -212,6 +213,7 @@ export function parseDotBim(source: string): DotBimParseResult {
         geometry = faceColor.geometry;
         material = faceColor.material;
       } else {
+        usedTemplates.add(element.mesh_id);
         material = createSolidMaterial(element.color ?? defaultColor);
       }
       const object = new Mesh(geometry, material);
@@ -224,6 +226,7 @@ export function parseDotBim(source: string): DotBimParseResult {
       object.userData.dotBimMeshId = element.mesh_id;
       root.add(object);
     }
+    for (const [meshId, geometry] of geometries) if (!usedTemplates.has(meshId)) geometry.dispose();
   } catch (reason) {
     for (const child of root.children) {
       const mesh = child as Mesh<BufferGeometry, Material>;

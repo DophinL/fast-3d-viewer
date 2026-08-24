@@ -43,7 +43,8 @@ test('opens IFC through the self-hosted Web-IFC runtime and retains element iden
   await page.locator('input[type="file"]').first().setInputFiles('tests/fixtures/minimal-triangle.ifc');
   await expect(page.locator('.viewport-badge')).toContainText('minimal-triangle.ifc', { timeout: 60_000 });
   await expect(page.getByText('IFC', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/Triangle/).first()).toBeVisible();
+  await page.getByRole('button', { name: /Scene graph/i }).click();
+  await expect(page.locator('.inspector-panel').getByText('Triangle', { exact: true }).first()).toBeVisible();
   expect(requests.some((url) => url.includes('/runtime/web-ifc/web-ifc.wasm'))).toBe(true);
   expect(requests.some((url) => url.includes('unpkg.com') || url.includes('cdn.jsdelivr.net'))).toBe(false);
 });

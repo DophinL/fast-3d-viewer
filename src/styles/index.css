@@ -855,7 +855,7 @@
     scrollbar-color: var(--paper-3) transparent;
     top: 4.2rem;
     width: min(22rem, calc(100% - 2rem));
-    z-index: 45;
+    z-index: 80;
   }
   .model-tools.is-compact { bottom: 3.2rem; max-height: min(21rem, calc(100% - 5rem)); top: auto; }
   .model-tools > header { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; min-height: 3.5rem; padding: .75rem .85rem; }
