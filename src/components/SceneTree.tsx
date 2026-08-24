@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Eye, EyeOff, Shapes } from 'lucide-react';
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import type { Object3D } from 'three';
 
 const MAX_VISIBLE_CHILDREN = 250;
@@ -11,7 +11,7 @@ function SceneNode({ object, depth, onChange }: { object: Object3D; depth: numbe
   const hasChildren = children.length > 0;
   return (
     <li>
-      <div className="scene-node" style={{ '--depth': depth } as CSSProperties}>
+      <div className="scene-node" data-depth={Math.min(depth, 8)}>
         <button type="button" className="scene-node__expand" disabled={!hasChildren} aria-label={expanded ? 'Collapse object' : 'Expand object'} onClick={() => setExpanded((value) => !value)}>
           {hasChildren ? expanded ? <ChevronDown /> : <ChevronRight /> : <span />}
         </button>

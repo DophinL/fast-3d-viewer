@@ -35,6 +35,7 @@ import { DropZone } from './components/DropZone';
 import { FormatDrawer } from './components/FormatDrawer';
 import { Inspector } from './components/Inspector';
 import { LoadingOverlay } from './components/LoadingOverlay';
+import { SceneRail } from './components/SceneRail';
 import { StatusBar } from './components/StatusBar';
 import { ViewerToolbar } from './components/ViewerToolbar';
 import { useViewerEngine } from './hooks/useViewerEngine';
@@ -289,17 +290,18 @@ export function App() {
             </div>
             <DropZone onFiles={openFiles} onUrl={openUrl} />
             <div id="capabilities" className="capability-strip">
-              <article><strong>{FORMAT_DEFINITIONS.length}</strong><span>format families</span><p>CAD, BIM, print, web, point clouds, and toolpaths.</p></article>
+              <article><strong>{FORMAT_DEFINITIONS.length}</strong><span>format families</span><p>CAD, print, web, point clouds, scenes, and toolpaths.</p></article>
               <article><strong>0</strong><span>server uploads</span><p>Parsing, diagnosis, repair, and export run locally.</p></article>
               <article><strong>&lt; 17 ms</strong><span>frame target</span><p>Adaptive pixel ratio and render-on-demand protect interaction.</p></article>
             </div>
             <div className="format-ribbon" aria-label="Popular supported formats">
-              {['GLB', 'GLTF', 'OBJ + MTL', 'FBX', 'STL', 'STEP', 'IGES', 'IFC', '3MF', 'USDZ', 'PLY', 'VOX'].map((format) => <span key={format}>{format}</span>)}
+              {['GLB', 'GLTF', 'OBJ + MTL', 'FBX', 'STL', 'STEP', 'IGES', '3MF', 'USDZ', 'PLY', 'VOX', '3DM'].map((format) => <span key={format}>{format}</span>)}
             </div>
           </div>
         )}
 
         <section className={`workbench ${asset ? 'has-asset' : ''}`} aria-hidden={!asset}>
+          {asset && <SceneRail asset={asset} selection={selection} onSceneChange={sceneChanged} />}
           <div className="viewer-column">
             <div ref={viewportRef} className="viewport">
               <canvas ref={canvasRef} aria-label="Interactive 3D viewport" />
@@ -342,7 +344,7 @@ export function App() {
       </main>
 
       {error && <div className="error-toast" role="alert"><XCircleIcon /><div><strong>That model did not complete.</strong><p>{error}</p></div><button type="button" aria-label="Dismiss error" onClick={() => setError(null)}><X /></button></div>}
-      {asset && progress && <div className="global-progress" style={{ transform: `scaleX(${progress.progress})` }} />}
+      {asset && progress && <progress className="global-progress" max="1" value={progress.progress} aria-label={progress.label} />}
       <FormatDrawer open={formatDrawer} onClose={() => setFormatDrawer(false)} />
       {formatDrawer && <button className="drawer-scrim" type="button" aria-label="Close format list" onClick={() => setFormatDrawer(false)} />}
     </div>

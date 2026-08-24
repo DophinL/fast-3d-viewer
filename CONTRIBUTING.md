@@ -44,7 +44,7 @@ An importer is not complete when one sample renders. A contribution should:
 - document unsupported variants and semantic loss;
 - avoid putting parser code in the initial JavaScript chunk.
 
-If a mature parser already exists in the `online-3d-viewer` compatibility package, prefer adapting that public API over copying its source or adding a second large dependency.
+Prefer a narrow format-specific parser or adapter with a stable public API. Do not copy importer source or add another complete viewer as a compatibility layer.
 
 ## Repair changes
 
@@ -72,7 +72,7 @@ Use focused conventional commit messages such as:
 feat(import): add binary PCD support
 fix(repair): retain winding when filling a hole
 test(viewer): cover mobile frame control
-docs(formats): clarify IFC semantic loss
+docs(formats): clarify STEP semantic loss
 ```
 
 Describe the user-visible outcome, validation performed, fixture license, and remaining limitations in the pull request.

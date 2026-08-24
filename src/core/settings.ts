@@ -2,7 +2,7 @@ import type { ViewerSettings } from './types';
 
 export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = Object.freeze({
   renderMode: 'material',
-  background: '#dcd8cd',
+  background: '#101315',
   environmentIntensity: 0.8,
   keyLightIntensity: 3.2,
   exposure: 1,

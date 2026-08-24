@@ -4,44 +4,39 @@ Support means the current importer recognizes the listed extension and can produ
 
 | Format | Extensions | Route | Package | Materials | Animation | Mesh repair | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| glTF / GLB | `.gltf`, `.glb` | Fast path | Yes | Yes | Yes | Yes | External buffers/textures, Meshopt, and Draco; compatibility fallback on parser failure. |
-| Wavefront OBJ | `.obj` | Coverage | Yes | Yes | No | Yes | Include MTL and texture files or drop the whole folder/ZIP. |
-| Autodesk FBX | `.fbx` | Fast path | Yes | Yes | Yes | Yes | Binary and ASCII; compatibility fallback on parser failure. |
-| STL | `.stl` | Coverage | No | No | No | Yes | Binary/ASCII; format has no standard unit metadata. |
-| PLY | `.ply` | Coverage | No | Yes | No | Yes | Mesh and point data; property combinations vary. |
-| 3MF | `.3mf` | Coverage | Yes | Yes | No | Yes | Packaged manufacturing scene; not all extensions are preserved. |
-| 3D Studio | `.3ds` | Coverage | Yes | Yes | No | Yes | Legacy limits and texture references apply. |
-| COLLADA | `.dae` | Fast path | Yes | Yes | Yes | Yes | Exporter-specific profiles may differ; compatibility fallback is available. |
-| VRML | `.wrl`, `.vrml` | Coverage | Yes | Yes | No | Yes | VRML 2.0 path. |
-| AMF | `.amf` | Coverage | No | Yes | No | Yes | Additive manufacturing triangle data. |
-| OFF | `.off` | Coverage | No | No | No | Yes | Polygon mesh converted to render triangles. |
+| glTF / GLB | `.gltf`, `.glb` | Native | Yes | Yes | Yes | Yes | External buffers/textures, Meshopt, and same-origin Draco decoding. |
+| Wavefront OBJ | `.obj` | Native | Yes | Yes | No | Yes | Include MTL and texture files or drop the whole folder/ZIP. |
+| Autodesk FBX | `.fbx` | Native | Yes | Yes | Yes | Yes | Binary and ASCII variants supported by the dedicated loader. |
+| STL | `.stl` | Native | No | No | No | Yes | Binary/ASCII; format has no standard unit metadata. |
+| PLY | `.ply` | Native | No | Yes | No | Yes | Mesh and point data; property combinations vary. |
+| 3MF | `.3mf` | Native | Yes | Yes | No | Yes | Packaged manufacturing scene; not all extensions are preserved. |
+| 3D Studio | `.3ds` | Native | Yes | Yes | No | Yes | Legacy limits and texture references apply. |
+| COLLADA | `.dae` | Native | Yes | Yes | Yes | Yes | Exporter-specific profiles may differ. |
+| VRML | `.wrl`, `.vrml` | Native | No | Yes | No | Yes | VRML 2.0 path. |
+| AMF | `.amf` | Native | No | Yes | No | Yes | Additive manufacturing triangle data. |
+| OFF | `.off` | Native | No | No | No | Yes | Local polygon triangulation. |
 | STEP | `.step`, `.stp` | CAD | No | Yes | No | No | Tessellated locally with OpenCascade; parametric history is not a render-scene guarantee. |
 | IGES | `.iges`, `.igs` | CAD | No | Yes | No | No | Surfaces/solids tessellated for display. |
 | BREP | `.brep` | CAD | No | Yes | No | No | OpenCascade boundary representation. |
-| Rhino | `.3dm` | Coverage | Yes | Yes | No | No | Geometry, layers, and selected object properties. |
-| FreeCAD | `.fcstd` | CAD | Yes | Yes | No | No | Document archive; source constraints and workbenches are not preserved by mesh export. |
-| IFC | `.ifc` | BIM | No | Yes | No | No | Display geometry and properties depend on importer; scene export is not IFC conversion. |
-| DotBIM | `.bim` | BIM | No | Yes | No | No | Open building-exchange geometry and metadata. |
-| USDZ | `.usdz` | Fast path | Yes | Yes | No | Yes | Current Three.js USDZ subset; variants need fixture validation. |
-| MagicaVoxel | `.vox` | Fast path | No | Yes | No | No | Palette voxel scenes. |
-| LDraw | `.ldr`, `.mpd`, `.dat` | Fast path | Embedded MPD only | Yes | No | No | External part-library fetches are blocked in local-first mode. |
-| XYZ points | `.xyz` | Fast path | No | Yes | No | No | XYZ and common XYZRGB text rows. |
-| PCD | `.pcd` | Fast path | No | Yes | No | No | PCL point cloud data. |
-| VTK | `.vtk`, `.vtp` | Fast path | No | No | No | Yes | Polygon data supported by the Three.js loader subset. |
-| KMZ | `.kmz` | Fast path | Yes | Yes | No | Yes | Compressed KML/COLLADA package. |
-| G-code | `.gcode`, `.gco`, `.nc` | Fast path | No | No | No | No | Toolpath lines, not a solid manufacturing simulation. |
-| Quake II MD2 | `.md2` | Fast path | No | No | Yes | Yes | Vertex animation; skins are a separate concern. |
+| Rhino | `.3dm` | Native | Yes | Yes | No | No | Geometry and layers through the dedicated Rhino loader. |
+| USDZ | `.usdz` | Native | Yes | Yes | No | Yes | Current Three.js USDZ subset; variants need fixture validation. |
+| MagicaVoxel | `.vox` | Native | No | Yes | No | No | Palette voxel scenes. |
+| LDraw | `.ldr`, `.mpd`, `.dat` | Native | Embedded MPD only | Yes | No | No | External part-library fetches are blocked in local-first mode. |
+| XYZ points | `.xyz` | Native | No | Yes | No | No | XYZ and common XYZRGB text rows. |
+| PCD | `.pcd` | Native | No | Yes | No | No | PCL Point Cloud Data files. |
+| VTK | `.vtk`, `.vtp` | Native | No | No | No | Yes | Polygon data supported by the Three.js loader subset. |
+| KMZ | `.kmz` | Native | Yes | Yes | No | Yes | Compressed KML/COLLADA package. |
+| G-code | `.gcode`, `.gco`, `.nc` | Native | No | No | No | No | Toolpath lines, not a solid manufacturing simulation. |
+| Quake II MD2 | `.md2` | Native | No | No | Yes | Yes | Vertex animation; skins are a separate concern. |
 
 ## Route definitions
 
-- **Fast path:** a lazy Three.js example loader, optimized for direct scene creation.
-- **Coverage:** the official `online-3d-viewer` npm importer family.
-- **CAD:** the self-hosted OpenCascade/WebAssembly conversion path used by the compatibility package.
-- **BIM:** the self-hosted IFC runtime or DotBIM conversion path used by the compatibility package.
+- **Native:** a focused format-specific loader or local adapter, lazy-loaded when practical.
+- **CAD:** the direct self-hosted OpenCascade/WebAssembly worker adapter.
 
 ## Package behavior
 
-Use folder or ZIP intake for formats with external references. Paths are normalized and unsafe archive entries are rejected. The current upstream adapter may flatten companion names for some importers, so duplicate basenames in separate nested folders are not yet guaranteed.
+Use folder or ZIP intake for formats with external references. Paths are normalized and unsafe archive entries are rejected. Package behavior is tested per loader; formats marked single-file do not claim external-library resolution.
 
 ## Repair meaning
 

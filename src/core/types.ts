@@ -50,7 +50,7 @@ export interface FormatDefinition {
   animations: boolean;
   materials: boolean;
   repair: boolean;
-  loader: 'upstream' | 'extra';
+  loader: 'native' | 'cad';
   description: string;
 }
 
@@ -147,7 +147,7 @@ export interface LoadedAsset {
   format: FormatDefinition;
   stats: AssetStats;
   issues: AssetIssue[];
-  parser: 'Fast native loader' | 'Online3DViewer engine';
+  parser: 'Fast native loader' | 'Native OCCT worker';
   cleanup: () => void;
 }
 

@@ -6,7 +6,7 @@ Fast 3D Viewer separates file intake, import, normalized scene behavior, renderi
 
 1. `DropZone` accepts local files, directories, ZIP archives, or an HTTPS URL.
 2. `file-bundle.ts` normalizes names, rejects unsafe archive paths, selects a likely primary file, and retains companion entries.
-3. `load-model.ts` chooses either a lazy Three.js fast path or the `online-3d-viewer` npm compatibility engine.
+3. `load-model.ts` chooses a format-specific native loader or the dedicated OpenCascade worker adapter.
 4. Every importer returns a normalized Three.js scene plus parser ownership and cleanup behavior.
 5. `inspect.ts` walks the scene once to derive asset statistics and lightweight findings.
 6. `ViewerEngine` frames and renders the scene on demand.
@@ -32,22 +32,22 @@ Each entry retains a normalized relative path, extension, size, and origin. This
 
 Remote URL intake also retains the source directory as `remoteBaseUrl`, so relative glTF, FBX, and COLLADA companions resolve against the model's origin instead of the viewer's own URL. Every remote response still needs to allow browser CORS.
 
-The compatibility backend currently resolves several companion types by basename. Packages containing different nested files with the same basename are therefore an acknowledged ambiguity. A future backend adapter should expose a path-preserving virtual filesystem rather than flattening those names.
+Package-aware native loaders resolve companions through a path-preserving virtual file map. Each new importer must document whether nested paths and duplicate basenames are supported.
 
 The production build copies Three.js Draco decoder assets into `dist/draco`. Compressed glTF decoding therefore stays on the same static origin and does not depend on a third-party decoder CDN.
 
-The inherited CAD/BIM adapter lazy-loads version-pinned OpenCascade, Rhino, IFC, and fallback Draco runtimes from `public/runtime` on the application origin. This preserves upstream coverage without placing those large kernels in the initial page load. Runtime hashes and license notices ship alongside those files, while the Content Security Policy blocks third-party scripts and workers.
+The CAD adapter calls the version-pinned OpenCascade worker from `public/runtime` on the application origin. Rhino uses its dedicated loader and same-origin runtime. This keeps large kernels out of the initial page load while the Content Security Policy blocks third-party scripts and workers.
 
 ## Loader ownership
 
 The format registry declares facts; it does not import parser code. `load-model.ts` routes at runtime:
 
-- **Fast path:** Three.js example loaders for selected web, scene, point-cloud, and toolpath formats. These branches are lazy chunks.
-- **Coverage path:** the official `online-3d-viewer` package for selected mature CAD, BIM, manufacturing, and legacy importers, including the OpenCascade WebAssembly path.
+- **Native route:** focused Three.js example loaders or small local adapters for web, mesh, scene, point-cloud, and toolpath formats. Heavy branches are lazy chunks.
+- **CAD route:** a direct, same-origin `occt-import-js` worker adapter for STEP, IGES, and BREP.
 
-`online-3d-viewer` 0.18.0 and the application are intentionally pinned to the same Three.js 0.176.0 runtime. Do not upgrade Three.js independently: objects created by one Three.js instance are not guaranteed to be renderable or exportable by another. The production STEP and export tests guard this integration boundary.
+The repository deliberately does not import another complete viewer as a compatibility layer. A format is registered only when its dedicated route and browser-level fixture are maintainable here.
 
-Importer output is normalized to `Object3D`. Format semantics that do not exist in Three.js must be represented in `userData` or documented as lost. Merely displaying tessellated geometry does not prove that parametric history, IFC properties, units, constraints, or manufacturing metadata survived.
+Importer output is normalized to `Object3D`. Format semantics that do not exist in Three.js must be represented in `userData` or documented as lost. Merely displaying tessellated geometry does not prove that parametric history, units, constraints, or manufacturing metadata survived.
 
 ## Renderer ownership
 

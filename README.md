@@ -14,7 +14,7 @@ Fast 3D Viewer is designed for the moment after someone receives a model and bef
 - **Non-destructive local repair.** Remove invalid or duplicate faces, fill simple planar holes, regenerate normals, and optionally center geometry. The source is never overwritten.
 - **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to measured frame cadence, avoid synchronous acceleration builds during open, and lazy-load importers and exporters.
 - **A deliberate interface.** The workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
-- **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD/BIM parser runtimes are version-pinned and served from the same origin under a strict script policy.
+- **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD parser runtimes are version-pinned and served from the same origin under a strict script policy.
 
 ## Try it
 
@@ -31,14 +31,13 @@ The app is a static Vite build. No API keys, database, or server are required.
 
 ## Format coverage
 
-The registry currently exposes **27 format families** and 36 filename extensions.
+The registry currently exposes **24 format families** and 33 filename extensions.
 
 | Family | Formats |
 | --- | --- |
 | Web and interchange | glTF, GLB, OBJ + MTL, FBX, COLLADA, USDZ |
 | Manufacturing and mesh | STL, 3MF, AMF, PLY, OFF, VTK |
-| CAD | STEP, IGES, BREP, Rhino 3DM, FreeCAD FCStd |
-| BIM | IFC, DotBIM |
+| CAD | STEP, IGES, BREP, Rhino 3DM |
 | Scenes and legacy | 3DS, VRML, LDraw, MagicaVoxel VOX, Quake II MD2, KMZ |
 | Point clouds | XYZ / XYZRGB, PCD, PLY |
 | Toolpaths | G-code |
@@ -86,15 +85,15 @@ Repair is intentionally conservative. It does not rebuild arbitrary self-interse
 - Binary or ASCII PLY
 - USDZ
 
-Exports represent the parsed render scene. They are not semantic CAD conversion: STEP/IFC/FCStd/3DM object properties may not survive a mesh-scene export.
+Exports represent the parsed render scene. They are not semantic CAD conversion: STEP/IGES/BREP/3DM object properties may not survive a mesh-scene export.
 
 ## Compared with Online3DViewer
 
-Fast 3D Viewer uses the official MIT-licensed [`online-3d-viewer`](https://www.npmjs.com/package/online-3d-viewer) package as a compatibility importer for selected CAD/BIM/legacy formats. Upstream source is not copied into the current repository tree. The workbench, renderer lifecycle, native fast paths, diagnostics, repair, and export flows are maintained here as independent code.
+Fast 3D Viewer does **not** import or wrap Online3DViewer. The application has its own viewer lifecycle, format registry, file-package layer, diagnostics, repair, and export flows. It uses narrow, format-specific open-source dependencies such as Three.js example loaders, `rhino3dm`, and a direct `occt-import-js` worker adapter.
 
 | Capability | Online3DViewer upstream | Fast 3D Viewer 0.1 |
 | --- | --- | --- |
-| Registered format families | 18 documented import families | 27 registered families |
+| Registered format families | 18 documented import families | 24 independently routed families |
 | Folder / multi-file / ZIP intake | Multiple inputs | Folder, multi-file, ZIP, normalized package index |
 | Topology diagnosis | Model validation hooks | Dedicated worker scan with quantitative findings |
 | Repair | No integrated repair workflow | Conservative local mesh repair creating a copy |
@@ -104,7 +103,7 @@ Fast 3D Viewer uses the official MIT-licensed [`online-3d-viewer`](https://www.n
 | WebGL failure state | Implementation-dependent | Tested non-crashing compatibility state |
 | Export | 3DM, BIM, glTF, OBJ, OFF, STL, PLY | GLB, glTF, OBJ, STL, PLY, USDZ from render scene |
 
-This table describes implemented product paths, not a claim that every parser is universally faster or more accurate. CAD import still relies on the upstream OpenCascade pipeline, and benchmark results depend on the model, device, browser, and cache. Reproducible performance rules are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+This table describes product differences, not copied implementation and not a claim that every parser is universally faster or more accurate. CAD import uses a dedicated local OpenCascade worker adapter; benchmark results depend on the model, device, browser, and cache. Reproducible performance rules are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Architecture
 
@@ -116,8 +115,8 @@ files / folder / URL / ZIP
            │
      ┌─────┴──────────┐
      ▼                ▼
-fast-path loaders   npm compatibility engine
-Three.js extras     selected CAD/BIM/legacy
+native loaders      CAD worker adapter
+format-specific     OpenCascade WASM
      └─────┬──────────┘
            ▼
       normalized scene
@@ -146,9 +145,9 @@ Unit tests cover the format registry, package normalization, archive safety, and
 
 ## Project status
 
-This is an early public release. The workbench is useful today, but the compatibility matrix needs more real-world fixtures, especially for vendor-specific CAD and BIM files. Known boundaries:
+This is an early public release. The workbench is useful today, but the compatibility matrix needs more real-world fixtures, especially for vendor-specific CAD files. Known boundaries:
 
-- ZIP entries are protected against absolute and parent-traversal paths, but nested packages with duplicate basenames can still be ambiguous in the compatibility backend.
+- ZIP entries are protected against absolute and parent-traversal paths; companion resolution still depends on each format's path conventions.
 - Interactive diagnostics intentionally stop above the configured triangle budget; repair is not streamed yet.
 - Point-cloud level of detail and progressive network loading are not implemented.
 - Export preserves the parsed render scene, not every source-format semantic.
@@ -164,7 +163,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Importers should include a small license
 
 Files are processed locally by the published app. URL imports are fetched directly by the browser and therefore depend on the remote server's CORS policy. Review [SECURITY.md](SECURITY.md) for archive limits, untrusted-model guidance, and private reporting.
 
-STEP/IGES/BREP, Rhino 3DM, IFC, and upstream Draco compatibility paths use the version-pinned runtime files in `public/runtime`. `SHA256SUMS` records the reviewed payloads, and the browser policy blocks third-party executable code. Remote URL import still contacts the model host selected by the user.
+STEP/IGES/BREP and Rhino 3DM use version-pinned runtime files in `public/runtime`. Direct glTF Draco decoding is copied from the pinned Three.js dependency at build time. `SHA256SUMS` records reviewed CAD payloads, and the browser policy blocks third-party executable code. Remote URL import still contacts the model host selected by the user.
 
 ## License and attribution
 

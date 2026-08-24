@@ -214,7 +214,7 @@ function ExportPanel({ asset, exportBusy, onExport }: Pick<InspectorProps, 'asse
   ];
   return (
     <>
-      <div className="export-intro"><Download /><div><strong>Export the scene you see.</strong><p>Exports are built locally from the parsed render scene. Keep the source when CAD or BIM semantics matter.</p></div></div>
+      <div className="export-intro"><Download /><div><strong>Export the scene you see.</strong><p>Exports are built locally from the parsed render scene. Keep the source when CAD semantics matter.</p></div></div>
       <Section title="Web & interchange" icon={<Package />}>
         <div className="export-list">
           {outputs.map((output) => (
@@ -226,7 +226,7 @@ function ExportPanel({ asset, exportBusy, onExport }: Pick<InspectorProps, 'asse
           ))}
         </div>
       </Section>
-      <div className="semantic-warning"><CircleHelp /><p><strong>Mesh export is not CAD conversion.</strong> STEP, IFC, FreeCAD, and Rhino object properties may not survive scene export.</p></div>
+      <div className="semantic-warning"><CircleHelp /><p><strong>Mesh export is not CAD conversion.</strong> STEP, IGES, BREP, and Rhino object properties may not survive scene export.</p></div>
       <div className="source-package"><FileBox /><div><strong>{asset.bundle.entries.length} source file{asset.bundle.entries.length === 1 ? '' : 's'} loaded</strong><span>{asset.bundle.archiveName ? `from ${asset.bundle.archiveName}` : 'from your local selection'}</span></div></div>
     </>
   );

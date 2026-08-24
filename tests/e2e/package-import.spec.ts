@@ -28,7 +28,7 @@ test('opens an OBJ and MTL together as one local package', async ({ page }) => {
   await expect(page.locator('.viewport-badge')).toContainText('package-test.obj', { timeout: 20_000 });
   await expect(page.locator('canvas')).toBeVisible();
   await expect(page.getByText('2 files')).toBeVisible();
-  await expect(page.getByText('Online3DViewer', { exact: false })).toBeVisible();
+  await expect(page.getByText('Fast native loader', { exact: false })).toBeVisible();
 });
 
 test('reports a recoverable error for a package without a model', async ({ page }) => {
@@ -55,7 +55,7 @@ test('opens an XYZ point cloud without leaving the loading state stuck', async (
   await expect(page.locator('canvas')).toBeVisible();
 });
 
-test('opens STEP through the npm compatibility engine using same-origin runtimes', async ({ page }) => {
+test('opens STEP through the independent OCCT worker using same-origin runtimes', async ({ page }) => {
   test.setTimeout(120_000);
   const requests: string[] = [];
   const pageErrors: string[] = [];
@@ -65,7 +65,7 @@ test('opens STEP through the npm compatibility engine using same-origin runtimes
   await page.locator('input[type="file"]').first().setInputFiles('node_modules/occt-import-js/test/testfiles/simple-basic-cube/cube.stp');
 
   await expect(page.locator('.viewport-badge')).toContainText('cube.stp', { timeout: 60_000 });
-  await expect(page.getByText('Online3DViewer', { exact: false })).toBeVisible();
+  await expect(page.getByText('Native OCCT worker', { exact: false })).toBeVisible();
   expect(requests.some((url) => url.includes('/runtime/occt/occt-import-js-worker.js'))).toBe(true);
   expect(requests.some((url) => url.includes('cdn.jsdelivr.net'))).toBe(false);
   expect(pageErrors).toEqual([]);
@@ -105,7 +105,7 @@ test('blocks absolute network companions declared by a local model', async ({ pa
 
 test('shows the registered capability matrix without loading a model', async ({ page }) => {
   await page.goto('/');
-  const formatsButton = page.getByRole('button', { name: /Formats 27/i });
+  const formatsButton = page.getByRole('button', { name: /Formats 24/i });
   if (!(await formatsButton.isVisible())) {
     await page.getByRole('button', { name: 'Toggle menu' }).click();
   }

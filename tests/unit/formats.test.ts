@@ -3,7 +3,7 @@ import { FORMAT_DEFINITIONS, SUPPORTED_EXTENSIONS, findFormat, getAcceptValue, g
 
 describe('format registry', () => {
   it('resolves aliases without inflating format-family claims', () => {
-    expect(FORMAT_DEFINITIONS).toHaveLength(27);
+    expect(FORMAT_DEFINITIONS).toHaveLength(24);
     expect(findFormat('assembly.STEP')?.id).toBe('step');
     expect(findFormat('part.stp')?.id).toBe('step');
     expect(findFormat('scene.glb')?.id).toBe('gltf');
@@ -11,7 +11,7 @@ describe('format registry', () => {
   });
 
   it('publishes unique supported extensions and ZIP as a package transport', () => {
-    expect(SUPPORTED_EXTENSIONS).toHaveLength(36);
+    expect(SUPPORTED_EXTENSIONS).toHaveLength(33);
     expect(new Set(SUPPORTED_EXTENSIONS).size).toBe(SUPPORTED_EXTENSIONS.length);
     expect(getAcceptValue()).toContain('.glb');
     expect(getAcceptValue()).toContain('.zip');
