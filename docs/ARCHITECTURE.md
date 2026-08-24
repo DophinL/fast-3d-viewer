@@ -1,6 +1,6 @@
 # Architecture
 
-Fast 3D Viewer separates file intake, import, normalized scene behavior, rendering, analysis, repair, and export. The separation is deliberate: parser coverage can grow without turning the viewport into a format-specific component, and expensive topology work stays off the UI thread.
+Modern 3D Workbench separates file intake, import, normalized scene behavior, rendering, model tools, analysis, repair, view-state, SDK integration, and export. The repository keeps the `fast-3d-viewer` slug for compatibility.
 
 ## Runtime flow
 
@@ -10,9 +10,10 @@ Fast 3D Viewer separates file intake, import, normalized scene behavior, renderi
 4. Every importer returns a normalized Three.js scene plus parser ownership and cleanup behavior.
 5. `inspect.ts` walks the scene once to derive asset statistics and lightweight findings.
 6. `ViewerEngine` frames and renders the scene on demand.
-7. Geometry payloads sent to `mesh-diagnostics.worker.ts` are copied into worker-owned typed arrays.
-8. Repair produces a new triangle-mesh object and valid local STL representation; it never mutates the source asset.
-9. Exporters serialize the visible normalized scene.
+7. Measurement, annotation, orientation, and clipping tools operate on the normalized scene without silently rewriting the source file.
+8. Geometry payloads sent to `mesh-diagnostics.worker.ts` are copied into worker-owned typed arrays.
+9. Repair produces a new triangle-mesh object and valid local STL representation; it never mutates the source asset.
+10. Exporters serialize the visible normalized scene.
 
 ## File bundle boundary
 
@@ -44,6 +45,7 @@ The format registry declares facts; it does not import parser code. `load-model.
 
 - **Native route:** focused Three.js example loaders or small local adapters for web, mesh, scene, point-cloud, and toolpath formats. Heavy branches are lazy chunks.
 - **CAD route:** a direct, same-origin `occt-import-js` worker adapter for STEP, IGES, and BREP.
+- **BIM routes:** an independent DotBIM 1.0/1.1 parser plus a self-hosted Web-IFC geometry adapter. DotBIM retains attached info; IFC retains express ID, GUID, type, and name on tessellated element groups.
 
 The repository deliberately does not import another complete viewer as a compatibility layer. A format is registered only when its dedicated route and browser-level fixture are maintainable here.
 
@@ -61,6 +63,8 @@ Importer output is normalized to `Object3D`. Format semantics that do not exist 
 - animation mixer updates;
 - display modes and temporary materials;
 - telemetry and cleanup.
+- explicit model transforms, measurement overlay, local annotations, and a global section plane;
+- interaction-time point draw budgets for dense point geometries.
 
 React owns controls and state, not individual frame rendering. A scene change calls `invalidate`; a small animation loop exists only while controls, auto-rotation, or model animation require it.
 
@@ -106,4 +110,4 @@ Keep it opt-in, non-destructive, measurable, cancellable when possible, and pair
 
 ### Embedding
 
-The current release is an application. A future package can extract `FileBundle`, loader routing, diagnostics, and `ViewerEngine` behind a stable headless API. Until then, internal modules may change between minor releases.
+`packages/core` exposes `Modern3DViewer` and the independent engine. `packages/react` and `packages/web-component` provide framework adapters. `/embed/` is a static URL-configured application surface. The 0.1 package API is buildable but not yet published to npm. Its README documents the same-origin runtime-asset contract for IFC, CAD, Draco, and Rhino; publishing still requires package-consumer browser fixtures and a final decision on whether ZIP support belongs in core or an optional adapter.

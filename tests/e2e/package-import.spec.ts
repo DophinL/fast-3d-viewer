@@ -28,7 +28,7 @@ test('opens an OBJ and MTL together as one local package', async ({ page }) => {
   await expect(page.locator('.viewport-badge')).toContainText('package-test.obj', { timeout: 20_000 });
   await expect(page.locator('canvas')).toBeVisible();
   await expect(page.getByText('2 files')).toBeVisible();
-  await expect(page.getByText('Fast native loader', { exact: false })).toBeVisible();
+  await expect(page.getByText('Modern native loader', { exact: false })).toBeVisible();
 });
 
 test('reports a recoverable error for a package without a model', async ({ page }) => {
@@ -40,7 +40,7 @@ test('reports a recoverable error for a package without a model', async ({ page 
   });
 
   await expect(page.getByRole('alert')).toContainText('No supported 3D file was found');
-  await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /See the model/ })).toBeVisible();
 });
 
 test('opens an XYZ point cloud without leaving the loading state stuck', async ({ page }) => {
@@ -105,7 +105,7 @@ test('blocks absolute network companions declared by a local model', async ({ pa
 
 test('shows the registered capability matrix without loading a model', async ({ page }) => {
   await page.goto('/');
-  const formatsButton = page.getByRole('button', { name: /Formats 24/i });
+  const formatsButton = page.getByRole('button', { name: /Formats 26/i });
   if (!(await formatsButton.isVisible())) {
     await page.getByRole('button', { name: 'Toggle menu' }).click();
   }
@@ -174,7 +174,7 @@ test('keeps URL import recoverable after protocol and HTTP failures', async ({ p
   await input.fill('https://fixtures.example/missing.glb');
   await page.getByRole('button', { name: 'Load model' }).click();
   await expect(page.getByRole('alert')).toContainText('HTTP 503');
-  await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /See the model/ })).toBeVisible();
 });
 
 test('does not let a slower previous load replace the latest model', async ({ page }) => {

@@ -4,8 +4,8 @@ test('opens the calibration model, renders WebGL, and exposes diagnostics', asyn
   const errors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await expect(page.getByRole('heading', { name: /See the model/ })).toBeVisible();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toContainText('fast-viewer-calibration.stl', { timeout: 20_000 });
   await expect(page.locator('canvas')).toBeVisible();
   await expect(page.getByRole('tab', { name: 'scene' })).toBeVisible();
@@ -18,7 +18,7 @@ test('opens the calibration model, renders WebGL, and exposes diagnostics', asyn
 test('adapts the workbench for mobile without losing core controls', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.includes('mobile'), 'Mobile-only layout assertion');
   await page.goto('/');
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('button', { name: 'Frame model' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'health' })).toBeVisible();

@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 test('keeps camera recovery controls reachable on a phone', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.includes('mobile'), 'Mobile viewport regression');
   await page.goto('/');
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toBeVisible({ timeout: 20_000 });
 
   const frame = page.getByRole('button', { name: 'Frame model' });

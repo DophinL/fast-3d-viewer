@@ -22,6 +22,18 @@ import { createCalibrationSample } from './core/samples';
 import { createRepairedObject, downloadExport, exportModel } from './core/export-model';
 import { findFormat, FORMAT_DEFINITIONS } from './core/formats';
 import { DEFAULT_VIEWER_SETTINGS } from './core/settings';
+import {
+  createShareUrl,
+  readViewerStateFromUrl,
+  type SharedViewerState,
+} from './core/view-state';
+import {
+  applyProductMetadata,
+  getProductRoute,
+  PRODUCT_NAME,
+  PRODUCT_SHORT_NAME,
+  REPOSITORY_URL,
+} from './core/product';
 import type {
   ExportRequest,
   LoadedAsset,
@@ -29,6 +41,10 @@ import type {
   MeshDiagnostics,
   RepairOptions,
   RepairResult,
+  ClippingSettings,
+  MeasurementUnit,
+  ModelAnnotation,
+  ViewerInteractionMode,
   ViewerSettings,
 } from './core/types';
 import { DropZone } from './components/DropZone';
@@ -38,6 +54,9 @@ import { LoadingOverlay } from './components/LoadingOverlay';
 import { SceneRail } from './components/SceneRail';
 import { StatusBar } from './components/StatusBar';
 import { ViewerToolbar } from './components/ViewerToolbar';
+import { ProductPageContent } from './components/ProductPageContent';
+import { ModelToolsPanel } from './components/ModelToolsPanel';
+import { BenchmarkPage } from './components/BenchmarkPage';
 import { useViewerEngine } from './hooks/useViewerEngine';
 
 function downloadDataUrl(url: string, name: string): void {
@@ -47,12 +66,37 @@ function downloadDataUrl(url: string, name: string): void {
   anchor.click();
 }
 
+function downloadBlob(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = name;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export function App() {
-  const { viewportRef, canvasRef, engineRef, telemetry, selection, rendererError, applySettings } = useViewerEngine();
+  const route = getProductRoute();
+  const embedParameters = route.id === 'embed' ? new URLSearchParams(window.location.search) : null;
+  const embedControls = embedParameters?.get('controls') !== 'false';
+  const {
+    viewportRef,
+    canvasRef,
+    engineRef,
+    telemetry,
+    selection,
+    rendererError,
+    measurement,
+    annotationPoint,
+    clearAnnotationPoint,
+    applySettings,
+  } = useViewerEngine();
   const diagnosticsService = useRef(new DiagnosticsService());
   const activeAssetRef = useRef<LoadedAsset | null>(null);
   const operationGeneration = useRef(0);
   const activeLoadAbort = useRef<AbortController | null>(null);
+  const pendingSharedState = useRef<SharedViewerState | null>(null);
+  const shareUrlHandled = useRef(false);
   const [asset, setAsset] = useState<LoadedAsset | null>(null);
   const [progress, setProgress] = useState<LoadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,12 +110,27 @@ export function App() {
   const [formatDrawer, setFormatDrawer] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [interactionMode, setInteractionMode] = useState<ViewerInteractionMode>('select');
+  const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>('unit');
+  const [clipping, setClipping] = useState<ClippingSettings>({ enabled: false, axis: 'x', position: 0.5, inverted: false });
+  const [annotations, setAnnotations] = useState<ModelAnnotation[]>([]);
+  const [remoteSourceUrl, setRemoteSourceUrl] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
 
   useEffect(() => () => {
     diagnosticsService.current.dispose();
     activeLoadAbort.current?.abort();
     activeAssetRef.current?.cleanup();
   }, []);
+
+  useEffect(() => {
+    applyProductMetadata(route);
+  }, [route]);
+
+  useEffect(() => {
+    if (asset) engineRef.current?.setAnnotations(annotations);
+  }, [annotations, asset, engineRef]);
 
   const updateSettings = useCallback((next: Partial<ViewerSettings>) => {
     setSettings((current) => ({ ...current, ...next }));
@@ -95,7 +154,21 @@ export function App() {
   }, []);
 
   const commitAsset = useCallback((next: LoadedAsset, completedRepair: RepairResult | null = null, completedDiagnostics: MeshDiagnostics | null = null) => {
-    engineRef.current?.setModel(next.root, next.animations);
+    const engine = engineRef.current;
+    engine?.setModel(next.root, next.animations);
+    const shared = pendingSharedState.current;
+    if (engine && shared) {
+      engine.applySettings(shared.settings);
+      engine.applyModelTransform(shared.transform ?? engine.getModelTransform()!);
+      engine.setClipping(shared.clipping);
+      engine.setAnnotations(shared.annotations);
+      window.requestAnimationFrame(() => engine.applyCameraState(shared.camera));
+      setSettings((current) => ({ ...current, ...shared.settings }));
+      setClipping(shared.clipping);
+      setMeasurementUnit(shared.measurementUnit);
+      setAnnotations(shared.annotations);
+      pendingSharedState.current = null;
+    }
     activeAssetRef.current?.cleanup();
     activeAssetRef.current = next;
     setAsset(next);
@@ -145,6 +218,8 @@ export function App() {
       setError('3D rendering is unavailable in this browser session. Enable hardware acceleration or try a current Chrome, Edge, Firefox, or Safari browser.');
       return;
     }
+    pendingSharedState.current = null;
+    setRemoteSourceUrl(null);
     void loadBundle(createFileBundle(files));
   }, [loadBundle, rendererError]);
 
@@ -153,9 +228,48 @@ export function App() {
       setError('3D rendering is unavailable in this browser session. Enable hardware acceleration before opening a model.');
       return;
     }
+    setRemoteSourceUrl(url);
     const controller = new AbortController();
-    void loadBundle(fetchRemoteBundle(url, controller.signal), controller);
+    void loadBundle(fetchRemoteBundle(url, controller.signal, ({ receivedBytes, totalBytes }) => {
+      const ratio = totalBytes ? Math.min(receivedBytes / totalBytes, 1) : 0;
+      setProgress({
+        phase: 'reading',
+        progress: totalBytes ? 0.04 + ratio * 0.18 : 0.08,
+        label: totalBytes
+          ? `Downloading model · ${(receivedBytes / 1_000_000).toFixed(1)} / ${(totalBytes / 1_000_000).toFixed(1)} MB`
+          : `Downloading model · ${(receivedBytes / 1_000_000).toFixed(1)} MB`,
+        bytesRead: receivedBytes,
+        bytesTotal: totalBytes ?? undefined,
+      });
+    }), controller);
   }, [loadBundle, rendererError]);
+
+  useEffect(() => {
+    if (shareUrlHandled.current) return;
+    shareUrlHandled.current = true;
+    try {
+      const shared = readViewerStateFromUrl();
+      if (shared) {
+        pendingSharedState.current = shared;
+        setRemoteSourceUrl(shared.modelUrl);
+        openUrl(shared.modelUrl);
+        return;
+      }
+      if (route.id !== 'embed') return;
+      const parameters = new URLSearchParams(window.location.search);
+      const modelUrl = parameters.get('model') ?? parameters.get('src');
+      const embeddedSettings: Partial<ViewerSettings> = {};
+      if (parameters.has('grid')) embeddedSettings.showGrid = parameters.get('grid') !== 'false';
+      if (parameters.has('shadows')) embeddedSettings.shadows = parameters.get('shadows') !== 'false';
+      if (parameters.has('autorotate')) embeddedSettings.autoRotate = parameters.get('autorotate') === 'true';
+      const background = parameters.get('background');
+      if (background && /^#[0-9a-f]{6}$/i.test(background)) embeddedSettings.background = background;
+      if (Object.keys(embeddedSettings).length > 0) updateSettings(embeddedSettings);
+      if (modelUrl) openUrl(modelUrl);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'The shared view link is invalid.');
+    }
+  }, [openUrl, route.id, updateSettings]);
 
   const repair = useCallback(async (options: RepairOptions) => {
     const current = activeAssetRef.current;
@@ -190,7 +304,7 @@ export function App() {
         stats,
         issues: buildAssetIssues(stats),
         animations: [],
-        parser: 'Fast native loader',
+        parser: 'Modern native loader',
         cleanup: () => disposeObject(root),
       };
       if (generation !== operationGeneration.current || activeAssetRef.current !== current) {
@@ -251,7 +365,91 @@ export function App() {
     setRepairResult(null);
     setProgress(null);
     setAnimationPlaying(false);
+    setToolsOpen(false);
+    setInteractionMode('select');
+    setClipping({ enabled: false, axis: 'x', position: 0.5, inverted: false });
+    setAnnotations([]);
+    setRemoteSourceUrl(null);
+    setShareStatus(null);
+    clearAnnotationPoint();
     setError(null);
+  };
+
+  const chooseInteractionMode = (mode: ViewerInteractionMode) => {
+    setInteractionMode(mode);
+    clearAnnotationPoint();
+    engineRef.current?.setInteractionMode(mode);
+  };
+
+  const updateClipping = (next: Partial<ClippingSettings>) => {
+    setClipping((current) => {
+      const updated = { ...current, ...next };
+      engineRef.current?.setClipping(updated);
+      return updated;
+    });
+  };
+
+  const transformModel = (operation: (engine: NonNullable<typeof engineRef.current>) => void) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    operation(engine);
+    setAnnotations([]);
+    clearAnnotationPoint();
+  };
+
+  const buildSharedState = (): SharedViewerState | null => {
+    const engine = engineRef.current;
+    if (!engine || !remoteSourceUrl) return null;
+    return {
+      version: 1,
+      modelUrl: remoteSourceUrl,
+      camera: engine.getCameraState(),
+      transform: engine.getModelTransform(),
+      settings: {
+        renderMode: settings.renderMode,
+        background: settings.background,
+        showGrid: settings.showGrid,
+        showAxes: settings.showAxes,
+        shadows: settings.shadows,
+        toneMapping: settings.toneMapping,
+        exposure: settings.exposure,
+      },
+      clipping,
+      measurementUnit,
+      annotations,
+    };
+  };
+
+  const copyShareLink = async () => {
+    const state = buildSharedState();
+    if (!state) {
+      setShareStatus('Local files cannot become a working share link unless the model is hosted at a CORS-enabled URL.');
+      return;
+    }
+    try {
+      const url = createShareUrl(window.location.href, state);
+      await navigator.clipboard.writeText(url);
+      setShareStatus('Share link copied. The model URL and current view settings are included.');
+    } catch (reason) {
+      setShareStatus(reason instanceof Error ? reason.message : 'Could not copy the share link.');
+    }
+  };
+
+  const downloadViewManifest = () => {
+    const engine = engineRef.current;
+    if (!engine || !asset) return;
+    const manifest = {
+      schema: 'modern-3d-workbench/view-manifest@1',
+      source: remoteSourceUrl ? { kind: 'remote', url: remoteSourceUrl } : { kind: 'local', fileName: asset.stats.fileName, included: false },
+      camera: engine.getCameraState(),
+      transform: engine.getModelTransform(),
+      settings,
+      clipping,
+      measurementUnit,
+      annotations,
+    };
+    downloadBlob(new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' }), `${asset.stats.fileName.replace(/\.[^.]+$/, '')}.view.json`);
+    setShareStatus('View manifest downloaded. Local source geometry is not included.');
   };
 
   const sceneChanged = (object: Object3D, visible: boolean) => {
@@ -260,32 +458,33 @@ export function App() {
   };
 
   return (
-    <div className={`app-shell ${asset && !inspectorOpen ? 'inspector-collapsed' : ''}`}>
+    <div className={`app-shell ${asset && !inspectorOpen ? 'inspector-collapsed' : ''} ${route.id === 'embed' ? 'app-shell--embed' : ''}`}>
       <header className="app-header">
-        <a className="brand" href="./" aria-label="Fast 3D Viewer home">
+        <a className="brand" href={import.meta.env.BASE_URL} aria-label={`${PRODUCT_NAME} home`}>
           <span className="brand__mark"><Boxes /></span>
-          <span><strong>FAST</strong><em>3D VIEWER</em></span>
+          <span><strong>{PRODUCT_SHORT_NAME}</strong><em>WORKBENCH</em></span>
         </a>
         <nav className={mobileMenu ? 'is-open' : ''} aria-label="Primary navigation">
           <button type="button" onClick={() => setFormatDrawer(true)}>Formats <span>{FORMAT_DEFINITIONS.length}</span></button>
           <a href="#capabilities">Capabilities</a>
-          <a href="https://github.com/DophinL/fast-3d-viewer#readme" target="_blank" rel="noreferrer">Docs <ArrowUpRight /></a>
+          <a href={`${REPOSITORY_URL}#readme`} target="_blank" rel="noreferrer">Docs <ArrowUpRight /></a>
         </nav>
         <div className="header-actions">
           <span className="privacy-badge"><ShieldCheck /> Files stay local</span>
-          <a className="github-link" href="https://github.com/DophinL/fast-3d-viewer" target="_blank" rel="noreferrer"><GitFork /><span>GitHub</span></a>
+          <a className="github-link" href={REPOSITORY_URL} target="_blank" rel="noreferrer"><GitFork /><span>GitHub</span></a>
           <button type="button" className="mobile-menu" aria-label="Toggle menu" onClick={() => setMobileMenu((value) => !value)}>{mobileMenu ? <X /> : <Menu />}</button>
         </div>
       </header>
 
       <main id="main-content" className="app-main">
-        {!asset && (
+        {!asset && route.id === 'benchmark' && <BenchmarkPage />}
+        {!asset && route.id !== 'benchmark' && (
           <div className="welcome-layout">
             <div className="welcome-copy">
-              <p className="eyebrow"><Zap /> OPEN FASTER · FIND PROBLEMS EARLIER</p>
-              <h1>A 3D viewer that tells you <em>what is wrong.</em></h1>
-              <p>Open complete model packages, inspect real render cost, scan topology, repair common mesh defects, and export a clean working copy. Nothing is uploaded.</p>
-              <button type="button" className="sample-link" onClick={() => openFiles([createCalibrationSample()])}><Sparkles /> Try the 3-second calibration sample</button>
+              <p className="eyebrow"><Zap /> {route.eyebrow}</p>
+              <h1>{route.headline} <em>{route.emphasizedHeadline}</em></h1>
+              <p>{route.introduction}</p>
+              <button type="button" className="sample-link" onClick={() => openFiles([createCalibrationSample()])}><Sparkles /> {route.primaryAction}</button>
               {rendererError && <div className="compatibility-notice" role="status"><strong>3D rendering is unavailable in this session.</strong><span>Your files are untouched. Enable browser hardware acceleration or switch to a current browser, then reload.</span></div>}
             </div>
             <DropZone onFiles={openFiles} onUrl={openUrl} />
@@ -295,8 +494,9 @@ export function App() {
               <article><strong>&lt; 17 ms</strong><span>frame target</span><p>Adaptive pixel ratio and render-on-demand protect interaction.</p></article>
             </div>
             <div className="format-ribbon" aria-label="Popular supported formats">
-              {['GLB', 'GLTF', 'OBJ + MTL', 'FBX', 'STL', 'STEP', 'IGES', '3MF', 'USDZ', 'PLY', 'VOX', '3DM'].map((format) => <span key={format}>{format}</span>)}
+              {route.formats.map((format) => <span key={format}>{format}</span>)}
             </div>
+            <ProductPageContent route={route} />
           </div>
         )}
 
@@ -305,7 +505,7 @@ export function App() {
           <div className="viewer-column">
             <div ref={viewportRef} className="viewport">
               <canvas ref={canvasRef} aria-label="Interactive 3D viewport" />
-              {asset && <ViewerToolbar
+              {asset && (route.id !== 'embed' || embedControls) && <ViewerToolbar
                 engineRef={engineRef}
                 settings={settings}
                 updateSettings={updateSettings}
@@ -314,6 +514,29 @@ export function App() {
                 hasAnimations={asset.animations.length > 0}
                 animationPlaying={animationPlaying}
                 onToggleAnimation={() => setAnimationPlaying(engineRef.current?.toggleAnimation() ?? false)}
+                toolsOpen={toolsOpen}
+                onTools={() => setToolsOpen((value) => !value)}
+              />}
+              {asset && <ModelToolsPanel
+                engineRef={engineRef}
+                open={toolsOpen}
+                onClose={() => setToolsOpen(false)}
+                mode={interactionMode}
+                onMode={chooseInteractionMode}
+                measurement={measurement}
+                unit={measurementUnit}
+                onUnit={setMeasurementUnit}
+                clipping={clipping}
+                onClipping={updateClipping}
+                annotationPoint={annotationPoint}
+                onAnnotationPointHandled={clearAnnotationPoint}
+                annotations={annotations}
+                onAnnotations={setAnnotations}
+                onTransform={transformModel}
+                remoteSourceUrl={remoteSourceUrl}
+                shareStatus={shareStatus}
+                onCopyShare={() => void copyShareLink()}
+                onDownloadManifest={downloadViewManifest}
               />}
               {progress && <LoadingOverlay progress={progress} />}
               {asset && <div className="viewport-badge"><span>{asset.stats.format}</span><strong>{asset.stats.fileName}</strong></div>}

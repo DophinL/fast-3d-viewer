@@ -12,7 +12,7 @@ Include the smallest possible reproduction, affected browser and operating syste
 
 ## Untrusted model files
 
-3D files are complex untrusted input. Fast 3D Viewer applies several boundaries, but it is not a malware sandbox:
+3D files are complex untrusted input. Modern 3D Workbench applies several boundaries, but it is not a malware sandbox:
 
 - ZIP paths are normalized and absolute or parent-traversal entries are rejected.
 - Archive expansion has file-count and expanded-size limits.

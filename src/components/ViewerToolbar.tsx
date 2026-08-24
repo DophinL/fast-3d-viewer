@@ -10,6 +10,7 @@ import {
   Pause,
   Play,
   Rotate3D,
+  Ruler,
   Scan,
   SunMedium,
 } from 'lucide-react';
@@ -27,9 +28,11 @@ interface ViewerToolbarProps {
   hasAnimations: boolean;
   animationPlaying: boolean;
   onToggleAnimation: () => void;
+  toolsOpen: boolean;
+  onTools: () => void;
 }
 
-export function ViewerToolbar({ engineRef, settings, updateSettings, onSnapshot, onFullscreen, hasAnimations, animationPlaying, onToggleAnimation }: ViewerToolbarProps) {
+export function ViewerToolbar({ engineRef, settings, updateSettings, onSnapshot, onFullscreen, hasAnimations, animationPlaying, onToggleAnimation, toolsOpen, onTools }: ViewerToolbarProps) {
   return (
     <nav className="viewer-toolbar" aria-label="Viewer controls">
       <div className="tool-group">
@@ -54,6 +57,7 @@ export function ViewerToolbar({ engineRef, settings, updateSettings, onSnapshot,
       </div>
       <div className="tool-separator" />
       <div className="tool-group">
+        <IconButton label="Measure, annotate, orient, and section" icon={<Ruler />} active={toolsOpen} onClick={onTools} />
         <div className="toolbar-menu toolbar-menu--wide">
           <IconButton label="Rendering style" icon={<Aperture />} />
           <div className="toolbar-menu__popover">

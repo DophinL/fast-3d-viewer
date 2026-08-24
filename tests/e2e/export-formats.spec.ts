@@ -13,7 +13,7 @@ async function downloadFrom(page: Page, buttonName: RegExp): Promise<{ download:
 
 test('downloads non-empty, recognizable files from every exporter', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toBeVisible({ timeout: 20_000 });
   await page.getByRole('tab', { name: 'export' }).click();
 

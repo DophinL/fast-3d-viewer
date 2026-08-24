@@ -12,7 +12,7 @@ test('stops scheduling animation frames after a static scene settles', async ({ 
   });
 
   await page.goto('/');
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toBeVisible({ timeout: 20_000 });
   await page.waitForTimeout(1_000);
 
@@ -77,7 +77,7 @@ test('never clears the drawing buffer after rendering an interaction frame', asy
   });
 
   await page.goto('/');
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: 'Auto rotate' }).click();
   await page.waitForTimeout(2_200);
