@@ -23,6 +23,7 @@ All notable changes are documented here. The project follows semantic versioning
 
 - Kept the compact model-tools panel above the mobile inspector so measurement and clipping controls remain clickable.
 - Made the IFC browser regression inspect the visible scene panel instead of matching hidden responsive content.
+- Made clean CI installations resolve workspace package sources before generated SDK output exists.
 
 ## 0.1.0 - 2026-08-24
 
