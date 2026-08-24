@@ -213,22 +213,27 @@ function ExportPanel({ asset, exportBusy, onExport }: Pick<InspectorProps, 'asse
     { format: 'usdz', label: 'USDZ', note: 'Spatial preview package' },
   ];
   return (
-    <>
-      <div className="export-intro"><Download /><div><strong>Export the scene you see.</strong><p>Exports are built locally from the parsed render scene. Keep the source when CAD semantics matter.</p></div></div>
-      <Section title="Web & interchange" icon={<Package />}>
+    <div className="export-panel">
+      <div className="export-intro">
+        <span className="export-intro__icon"><Download /></span>
+        <div><small>WORKING COPY</small><strong>Export what is visible</strong><p>Built locally from the current render scene. Your source stays untouched.</p></div>
+      </div>
+      <Section title="Export formats" icon={<Package />}>
         <div className="export-list">
           {outputs.map((output) => (
-            <button type="button" key={output.format} disabled={Boolean(exportBusy)} onClick={() => onExport({ format: output.format, binary: true, onlyVisible: true, includeAnimations: true })}>
+            <button type="button" key={output.format} aria-label={`Export ${output.label}`} disabled={Boolean(exportBusy)} onClick={() => onExport({ format: output.format, binary: true, onlyVisible: true, includeAnimations: true })}>
               <span className="export-list__format">{output.format}</span>
-              <span><strong>{exportBusy === output.format ? `Building ${output.label}…` : `Download ${output.label}`}</strong><small>{output.note}</small></span>
+              <span><strong>{exportBusy === output.format ? `Building ${output.label}…` : output.label}</strong><small>{output.note}</small></span>
               <Download />
             </button>
           ))}
         </div>
       </Section>
-      <div className="semantic-warning"><CircleHelp /><p><strong>Mesh export is not CAD conversion.</strong> STEP, IGES, BREP, and Rhino object properties may not survive scene export.</p></div>
-      <div className="source-package"><FileBox /><div><strong>{asset.bundle.entries.length} source file{asset.bundle.entries.length === 1 ? '' : 's'} loaded</strong><span>{asset.bundle.archiveName ? `from ${asset.bundle.archiveName}` : 'from your local selection'}</span></div></div>
-    </>
+      <div className="export-footnotes">
+        <div className="semantic-warning"><CircleHelp /><p><strong>Mesh export is not CAD conversion.</strong><span> STEP, IGES, BREP, and Rhino properties may not survive.</span></p></div>
+        <div className="source-package"><FileBox /><div><strong>{asset.bundle.entries.length} source file{asset.bundle.entries.length === 1 ? '' : 's'} loaded</strong><span>{asset.bundle.archiveName ? `From ${asset.bundle.archiveName}` : 'From your local selection'}</span></div></div>
+      </div>
+    </div>
   );
 }
 
@@ -255,10 +260,9 @@ export function Inspector(props: InspectorProps) {
         ))}
       </div>
       <div className="inspector-scroll">
-        {tab === 'scene' && <ScenePanel asset={props.asset} selection={props.selection} telemetry={props.telemetry} onChange={props.onSceneChange} />}
+        {tab === 'scene' && <><ScenePanel asset={props.asset} selection={props.selection} telemetry={props.telemetry} onChange={props.onSceneChange} /><SettingsPanel settings={props.settings} onSettings={props.onSettings} /></>}
         {tab === 'health' && <HealthPanel {...props} />}
         {tab === 'export' && <ExportPanel {...props} />}
-        <SettingsPanel settings={props.settings} onSettings={props.onSettings} />
       </div>
     </aside>
   );
