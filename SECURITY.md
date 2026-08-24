@@ -20,7 +20,7 @@ Include the smallest possible reproduction, affected browser and operating syste
 - The app does not upload local model contents.
 - URL imports obey browser CORS and mixed-content rules.
 
-The direct glTF Draco decoder is served from the same static origin. Some inherited CAD/BIM compatibility importers lazy-load version-pinned OpenCascade, Rhino, IFC, or Draco runtime code from jsDelivr. That CDN receives a normal runtime asset request, not the model contents. Self-host those inherited runtimes for air-gapped or zero-third-party-network deployments.
+The direct glTF Draco decoder and the inherited OpenCascade, Rhino, IFC, and Draco compatibility runtimes are served from the same static origin. Their reviewed payloads and checksums live under `public/runtime`; model parsing does not fetch executable code from a third-party CDN.
 
 Browser parsers, image decoders, WebAssembly CAD kernels, and GPU drivers remain part of the attack surface. Keep the browser updated and do not open suspicious files on a sensitive workstation.
 

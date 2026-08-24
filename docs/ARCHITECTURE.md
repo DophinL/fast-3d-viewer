@@ -45,6 +45,8 @@ The format registry declares facts; it does not import parser code. `load-model.
 - **Fast path:** Three.js example loaders for selected web, scene, point-cloud, and toolpath formats. These branches are lazy chunks.
 - **Coverage path:** the official `online-3d-viewer` package for selected mature CAD, BIM, manufacturing, and legacy importers, including the OpenCascade WebAssembly path.
 
+`online-3d-viewer` 0.18.0 and the application are intentionally pinned to the same Three.js 0.176.0 runtime. Do not upgrade Three.js independently: objects created by one Three.js instance are not guaranteed to be renderable or exportable by another. The production STEP and export tests guard this integration boundary.
+
 Importer output is normalized to `Object3D`. Format semantics that do not exist in Three.js must be represented in `userData` or documented as lost. Merely displaying tessellated geometry does not prove that parametric history, IFC properties, units, constraints, or manufacturing metadata survived.
 
 ## Renderer ownership

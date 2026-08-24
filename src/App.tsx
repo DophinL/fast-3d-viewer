@@ -214,6 +214,7 @@ export function App() {
       const result = await exportModel(current.root, current.stats.fileName, request, current.animations);
       downloadExport(result);
     } catch (reason) {
+      console.error('Model export failed.', reason);
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setExportBusy(null);

@@ -18,6 +18,10 @@ export interface ExportedModel {
 
 const baseName = (name: string): string => name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9._-]+/gi, '-');
 
+function copyBinaryView(view: ArrayBufferView<ArrayBufferLike>): ArrayBuffer {
+  return Uint8Array.from(new Uint8Array(view.buffer, view.byteOffset, view.byteLength)).buffer;
+}
+
 function cloneVisible(root: Object3D, onlyVisible: boolean): Object3D {
   if (!onlyVisible) return root;
   const clone = root.clone(true);
@@ -66,7 +70,7 @@ export async function exportModel(
   if (request.format === 'stl') {
     const { STLExporter } = await import('three/examples/jsm/exporters/STLExporter.js');
     const output = new STLExporter().parse(object, { binary: request.binary ?? true });
-    const blob = new Blob([output], { type: 'model/stl' });
+    const blob = new Blob([typeof output === 'string' ? output : copyBinaryView(output)], { type: 'model/stl' });
     return { blob, extension: 'stl', mimeType: blob.type, name: `${stem}.stl` };
   }
 
@@ -81,7 +85,7 @@ export async function exportModel(
 
   const { USDZExporter } = await import('three/examples/jsm/exporters/USDZExporter.js');
   const output = await new USDZExporter().parseAsync(object as Group, { maxTextureSize: 8192 });
-  const blob = new Blob([output], { type: 'model/vnd.usdz+zip' });
+  const blob = new Blob([copyBinaryView(output)], { type: 'model/vnd.usdz+zip' });
   return { blob, extension: 'usdz', mimeType: blob.type, name: `${stem}.usdz` };
 }
 

@@ -138,9 +138,9 @@ async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Pro
   }
   if (extension === 'vox') {
     const { VOXLoader, VOXMesh } = await import('three/examples/jsm/loaders/VOXLoader.js');
-    const result = new VOXLoader().parse(await readBuffer(file));
+    const chunks = new VOXLoader().parse(await readBuffer(file)) as ConstructorParameters<typeof VOXMesh>[0][];
     const root = new Group();
-    result.chunks.forEach((chunk) => root.add(new VOXMesh(chunk)));
+    chunks.forEach((chunk) => root.add(new VOXMesh(chunk)));
     return { root, animations: [], parser: 'Fast native loader' };
   }
   if (['ldr', 'mpd', 'dat'].includes(extension)) {
@@ -148,7 +148,7 @@ async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Pro
     const resources = createPackageManager(bundle);
     try {
       const text = await readText(file);
-      const parsed = await new Promise<Group>((resolve, reject) => new LDrawLoader(resources.manager).parse(text, resolve, reject));
+      const parsed = await new Promise<Group>((resolve, reject) => new LDrawLoader(resources.manager).parse(text, '', resolve, reject));
       return { root: parsed, animations: [], parser: 'Fast native loader', cleanup: resources.cleanup };
     } catch (error) {
       resources.cleanup();
