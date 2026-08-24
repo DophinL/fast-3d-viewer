@@ -1,4 +1,4 @@
-# Testing Fast 3D Viewer
+# Testing Modern 3D Workbench
 
 Tests make fast iteration safe. The project aims for full coverage of format
 routing, package handling, geometry inspection, diagnostics, repair, export,

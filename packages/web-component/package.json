@@ -1,0 +1,16 @@
+{
+  "name": "@fast-3d-viewer/web-component",
+  "version": "0.2.0",
+  "description": "Web Component for Modern 3D Workbench",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": true,
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "peerDependencies": {
+    "@fast-3d-viewer/core": "^0.2.0",
+    "three": ">=0.176.0 <1"
+  }
+}

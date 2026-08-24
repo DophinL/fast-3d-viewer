@@ -13,6 +13,9 @@ import {
 } from 'three';
 import { findFormat } from './formats';
 import { buildAssetIssues, disposeObject, inspectAsset } from './inspect';
+import { parseDotBim } from './loaders/dotbim';
+import { parseIfc } from './loaders/ifc';
+import { runtimeAssetUrl } from './runtime-url';
 import type { FileBundle, LoadedAsset, LoadProgress } from './types';
 
 type ProgressCallback = (progress: LoadProgress) => void;
@@ -165,7 +168,7 @@ async function parseCad(bundle: FileBundle, onProgress: ProgressCallback): Promi
   const extension = bundle.mainFile.extension;
   const format = ['step', 'stp'].includes(extension) ? 'step' : ['iges', 'igs'].includes(extension) ? 'iges' : 'brep';
   const buffer = await readBuffer(bundle.mainFile.file);
-  const worker = new Worker(new URL('runtime/occt/occt-import-js-worker.js', document.baseURI).toString());
+  const worker = new Worker(runtimeAssetUrl('runtime/occt/occt-import-js-worker.js').toString());
   const result = await new Promise<OcctResult>((resolve, reject) => {
     worker.addEventListener('message', (event: MessageEvent<OcctResult>) => resolve(event.data), { once: true });
     worker.addEventListener('error', () => reject(new Error('The local OpenCascade worker could not start.')), { once: true });
@@ -191,11 +194,11 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
         import('three/examples/jsm/loaders/GLTFLoader.js'), import('three/examples/jsm/loaders/DRACOLoader.js'), import('three/examples/jsm/libs/meshopt_decoder.module.js'),
       ]);
       const draco = new DRACOLoader(resources.manager);
-      draco.setDecoderPath(new URL('./draco/', document.baseURI).toString());
+      draco.setDecoderPath(runtimeAssetUrl('draco/').toString());
       const loader = new GLTFLoader(resources.manager).setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
       const input = extension === 'glb' ? await readBuffer(file) : await readText(file);
       const parsed = await new Promise<Awaited<ReturnType<typeof loader.parseAsync>>>((resolve, reject) => loader.parse(input, '', resolve, reject));
-      return { root: parsed.scene, animations: parsed.animations, parser: 'Fast native loader', cleanup: () => { resources.cleanup(); draco.dispose(); } };
+      return { root: parsed.scene, animations: parsed.animations, parser: 'Modern native loader', cleanup: () => { resources.cleanup(); draco.dispose(); } };
     } catch (error) { resources.cleanup(); throw error; }
   }
 
@@ -210,7 +213,7 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
         materials.preload();
         loader.setMaterials(materials);
       }
-      return { root: loader.parse(await readText(file)), animations: [], parser: 'Fast native loader', cleanup: resources.cleanup };
+      return { root: loader.parse(await readText(file)), animations: [], parser: 'Modern native loader', cleanup: resources.cleanup };
     } catch (error) { resources.cleanup(); throw error; }
   }
 
@@ -219,7 +222,7 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
     try {
       const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
       const root = new FBXLoader(resources.manager).parse(await readBuffer(file), '');
-      return { root, animations: root.animations, parser: 'Fast native loader', cleanup: resources.cleanup };
+      return { root, animations: root.animations, parser: 'Modern native loader', cleanup: resources.cleanup };
     } catch (error) { resources.cleanup(); throw error; }
   }
 
@@ -228,58 +231,69 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
     try {
       const { ColladaLoader } = await import('three/examples/jsm/loaders/ColladaLoader.js');
       const parsed = new ColladaLoader(resources.manager).parse(await readText(file), '');
-      return { root: parsed.scene, animations: parsed.scene.animations, parser: 'Fast native loader', cleanup: resources.cleanup };
+      return { root: parsed.scene, animations: parsed.scene.animations, parser: 'Modern native loader', cleanup: resources.cleanup };
     } catch (error) { resources.cleanup(); throw error; }
   }
 
   if (extension === 'stl') {
     const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
-    return { root: new Mesh(new STLLoader().parse(await readBuffer(file)), meshMaterial()), animations: [], parser: 'Fast native loader' };
+    return { root: new Mesh(new STLLoader().parse(await readBuffer(file)), meshMaterial()), animations: [], parser: 'Modern native loader' };
+  }
+  if (extension === 'bim') {
+    const parsed = parseDotBim(await readText(file));
+    return { root: parsed.root, animations: [], parser: 'Modern native loader' };
+  }
+  if (extension === 'ifc') {
+    const parsed = await parseIfc(await readBuffer(file), ({ completedMeshes, totalMeshes }) => {
+      const ratio = totalMeshes > 0 ? completedMeshes / totalMeshes : 0;
+      update(onProgress, 'assembling', 0.42 + ratio * 0.4, `Building IFC elements · ${completedMeshes.toLocaleString()} / ${totalMeshes.toLocaleString()}`);
+    });
+    return { root: parsed.root, animations: [], parser: 'Modern native loader' };
   }
   if (extension === 'ply') {
     const { PLYLoader } = await import('three/examples/jsm/loaders/PLYLoader.js');
     const geometry = new PLYLoader().parse(await readBuffer(file));
     const root = geometry.getIndex() ? new Mesh(geometry, meshMaterial()) : new Points(geometry, new PointsMaterial({ size: 0.015, vertexColors: Boolean(geometry.getAttribute('color')), color: 0xadb3b8 }));
-    return { root, animations: [], parser: 'Fast native loader' };
+    return { root, animations: [], parser: 'Modern native loader' };
   }
   if (extension === '3mf') {
     const { ThreeMFLoader } = await import('three/examples/jsm/loaders/3MFLoader.js');
-    return { root: new ThreeMFLoader().parse(await readBuffer(file)), animations: [], parser: 'Fast native loader' };
+    return { root: new ThreeMFLoader().parse(await readBuffer(file)), animations: [], parser: 'Modern native loader' };
   }
   if (extension === '3ds') {
     const resources = createPackageManager(bundle);
     const { TDSLoader } = await import('three/examples/jsm/loaders/TDSLoader.js');
-    return { root: new TDSLoader(resources.manager).parse(await readBuffer(file), ''), animations: [], parser: 'Fast native loader', cleanup: resources.cleanup };
+    return { root: new TDSLoader(resources.manager).parse(await readBuffer(file), ''), animations: [], parser: 'Modern native loader', cleanup: resources.cleanup };
   }
   if (['wrl', 'vrml'].includes(extension)) {
     const { VRMLLoader } = await import('three/examples/jsm/loaders/VRMLLoader.js');
-    return { root: new VRMLLoader().parse(await readText(file), ''), animations: [], parser: 'Fast native loader' };
+    return { root: new VRMLLoader().parse(await readText(file), ''), animations: [], parser: 'Modern native loader' };
   }
   if (extension === 'amf') {
     const { AMFLoader } = await import('three/examples/jsm/loaders/AMFLoader.js');
-    return { root: new AMFLoader().parse(await readBuffer(file)), animations: [], parser: 'Fast native loader' };
+    return { root: new AMFLoader().parse(await readBuffer(file)), animations: [], parser: 'Modern native loader' };
   }
-  if (extension === 'off') return { root: parseOff(await readText(file)), animations: [], parser: 'Fast native loader' };
+  if (extension === 'off') return { root: parseOff(await readText(file)), animations: [], parser: 'Modern native loader' };
   if (extension === '3dm') {
     const resources = createPackageManager(bundle);
     const { Rhino3dmLoader } = await import('three/examples/jsm/loaders/3DMLoader.js');
-    const loader = new Rhino3dmLoader(resources.manager).setLibraryPath(new URL('runtime/rhino3dm/', document.baseURI).toString());
+    const loader = new Rhino3dmLoader(resources.manager).setLibraryPath(runtimeAssetUrl('runtime/rhino3dm/').toString());
     try {
       const data = await readBuffer(file);
       const root = await new Promise<Object3D>((resolve, reject) => loader.parse(data, resolve, reject));
-      return { root, animations: [], parser: 'Fast native loader', cleanup: () => { resources.cleanup(); loader.dispose(); } };
+      return { root, animations: [], parser: 'Modern native loader', cleanup: () => { resources.cleanup(); loader.dispose(); } };
     } catch (error) { resources.cleanup(); loader.dispose(); throw error; }
   }
   if (extension === 'usdz') {
     const { USDZLoader } = await import('three/examples/jsm/loaders/USDZLoader.js');
-    return { root: new USDZLoader().parse(await readBuffer(file)), animations: [], parser: 'Fast native loader' };
+    return { root: new USDZLoader().parse(await readBuffer(file)), animations: [], parser: 'Modern native loader' };
   }
   if (extension === 'vox') {
     const { VOXLoader, VOXMesh } = await import('three/examples/jsm/loaders/VOXLoader.js');
     const chunks = new VOXLoader().parse(await readBuffer(file)) as ConstructorParameters<typeof VOXMesh>[0][];
     const root = new Group();
     chunks.forEach((chunk) => root.add(new VOXMesh(chunk)));
-    return { root, animations: [], parser: 'Fast native loader' };
+    return { root, animations: [], parser: 'Modern native loader' };
   }
   if (['ldr', 'mpd', 'dat'].includes(extension)) {
     const { LDrawLoader } = await import('three/examples/jsm/loaders/LDrawLoader.js');
@@ -287,7 +301,7 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
     try {
       const data = await readText(file);
       const parsed = await new Promise<Group>((resolve, reject) => new LDrawLoader(resources.manager).parse(data, '', resolve, reject));
-      return { root: parsed, animations: [], parser: 'Fast native loader', cleanup: resources.cleanup };
+      return { root: parsed, animations: [], parser: 'Modern native loader', cleanup: resources.cleanup };
     } catch (error) { resources.cleanup(); throw error; }
   }
   if (extension === 'xyz') {
@@ -296,17 +310,17 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
     // @types/three still describes the pre-r176 callback signature; the shipped
     // loader is synchronous and returns BufferGeometry.
     const geometry = (new XYZLoader() as unknown as { parse(source: string): BufferGeometry }).parse(data);
-    return { root: new Points(geometry, new PointsMaterial({ size: 0.015, vertexColors: Boolean(geometry.getAttribute('color')), color: 0xadb3b8 })), animations: [], parser: 'Fast native loader' };
+    return { root: new Points(geometry, new PointsMaterial({ size: 0.015, vertexColors: Boolean(geometry.getAttribute('color')), color: 0xadb3b8 })), animations: [], parser: 'Modern native loader' };
   }
   if (extension === 'pcd') {
     const { PCDLoader } = await import('three/examples/jsm/loaders/PCDLoader.js');
-    return { root: new PCDLoader().parse(await readBuffer(file)), animations: [], parser: 'Fast native loader' };
+    return { root: new PCDLoader().parse(await readBuffer(file)), animations: [], parser: 'Modern native loader' };
   }
   if (['vtk', 'vtp'].includes(extension)) {
     const { VTKLoader } = await import('three/examples/jsm/loaders/VTKLoader.js');
     const geometry = new VTKLoader().parse(await readBuffer(file), '');
     geometry.computeVertexNormals();
-    return { root: new Mesh(geometry, meshMaterial()), animations: [], parser: 'Fast native loader' };
+    return { root: new Mesh(geometry, meshMaterial()), animations: [], parser: 'Modern native loader' };
   }
   if (extension === 'kmz') {
     const { KMZLoader } = await import('three/examples/jsm/loaders/KMZLoader.js');
@@ -319,16 +333,16 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
     for (const [name, bytes] of Object.entries(contents)) {
       if (/(?:https?:)?\/\//i.test(new TextDecoder().decode(bytes))) throw new Error(`Blocked an external resource reference in local KMZ entry ${name}.`);
     }
-    return { root: new KMZLoader().parse(input).scene, animations: [], parser: 'Fast native loader' };
+    return { root: new KMZLoader().parse(input).scene, animations: [], parser: 'Modern native loader' };
   }
   if (['gcode', 'gco', 'nc'].includes(extension)) {
     const { GCodeLoader } = await import('three/examples/jsm/loaders/GCodeLoader.js');
-    return { root: new GCodeLoader().parse(await readText(file)), animations: [], parser: 'Fast native loader' };
+    return { root: new GCodeLoader().parse(await readText(file)), animations: [], parser: 'Modern native loader' };
   }
   if (extension === 'md2') {
     const { MD2Loader } = await import('three/examples/jsm/loaders/MD2Loader.js');
     const geometry = new MD2Loader().parse(await readBuffer(file)) as BufferGeometry & { animations?: AnimationClip[] };
-    return { root: new Mesh(geometry, meshMaterial()), animations: geometry.animations ?? [], parser: 'Fast native loader' };
+    return { root: new Mesh(geometry, meshMaterial()), animations: geometry.animations ?? [], parser: 'Modern native loader' };
   }
   throw new Error(`The ${extension.toUpperCase()} loader is not available in this browser build.`);
 }

@@ -4,7 +4,7 @@ test('switches display materials and restores the source material', async ({ pag
   const errors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('/');
-  await page.getByRole('button', { name: /calibration sample/i }).click();
+  await page.getByRole('button', { name: /calibration model/i }).click();
   await expect(page.locator('.viewport-badge')).toBeVisible({ timeout: 20_000 });
 
   const style = page.getByRole('button', { name: 'Rendering style' });

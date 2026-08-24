@@ -19,6 +19,8 @@ Support means the current importer recognizes the listed extension and can produ
 | IGES | `.iges`, `.igs` | CAD | No | Yes | No | No | Surfaces/solids tessellated for display. |
 | BREP | `.brep` | CAD | No | Yes | No | No | OpenCascade boundary representation. |
 | Rhino | `.3dm` | Native | Yes | Yes | No | No | Geometry and layers through the dedicated Rhino loader. |
+| DotBIM | `.bim` | Native | No | Yes | No | No | Independently parses schema 1.0/1.1 meshes, element transforms, element or face colors, GUID/type, and attached info. Coordinates are defined by the format in meters. |
+| IFC | `.ifc` | Native | No | Yes | No | No | IFC2X3/IFC4 geometry through self-hosted Web-IFC. Retains element express ID, GUID, type, and name in the scene; does not claim full relationship/property editing. |
 | USDZ | `.usdz` | Native | Yes | Yes | No | Yes | Current Three.js USDZ subset; variants need fixture validation. |
 | MagicaVoxel | `.vox` | Native | No | Yes | No | No | Palette voxel scenes. |
 | LDraw | `.ldr`, `.mpd`, `.dat` | Native | Embedded MPD only | Yes | No | No | External part-library fetches are blocked in local-first mode. |

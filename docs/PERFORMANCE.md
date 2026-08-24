@@ -1,6 +1,6 @@
 # Performance model
 
-Fast 3D Viewer optimizes for low input latency and honest failure behavior. A universal “times faster” claim would be misleading because import cost varies across JavaScript parsers, WebAssembly CAD tessellation, texture decoding, model topology, browser cache, GPU, and device pixel ratio.
+Modern 3D Workbench optimizes for low input latency and honest failure behavior. The historical repository slug is `fast-3d-viewer`; a universal “times faster” claim would be misleading because import cost varies across JavaScript parsers, WebAssembly CAD tessellation, texture decoding, model topology, browser cache, GPU, and device pixel ratio.
 
 ## Implemented controls
 
@@ -11,6 +11,14 @@ The renderer invalidates when the camera, selection, scene, settings, animation,
 ### Adaptive resolution
 
 The engine watches frame time and adjusts pixel ratio inside a bounded range. This targets interaction rather than chasing the device's maximum DPR on a dense display. The user-visible telemetry reports the active ratio.
+
+### Point-cloud interaction budget
+
+Point geometries retain their full source buffer. While the user is orbiting, the renderer caps each point draw range at 250,000 points when adaptive quality is enabled; it restores the complete draw range when interaction stops. This reduces camera latency but is not spatial LOD and cannot replace an octree for very large clouds.
+
+### Streamed remote intake
+
+Remote responses are read as a byte stream, report known or received bytes, and stop above the 256 MB interactive limit. Parsers still receive a complete `File`, so this is download progress and bounded intake rather than progressive geometry display.
 
 ### Lazy parser chunks
 
@@ -42,7 +50,7 @@ find dist/assets -type f -maxdepth 1 -print
 
 ## Reproducible benchmark protocol
 
-When comparing Fast 3D Viewer with another viewer, record:
+The public `/benchmark/` route and `npm run benchmark:viewer` command implement the parser/assembly subset described in [BENCHMARK_PROTOCOL.md](BENCHMARK_PROTOCOL.md). When comparing with another viewer, record:
 
 - exact commit or release;
 - browser version and clean profile;
@@ -57,7 +65,7 @@ When comparing Fast 3D Viewer with another viewer, record:
 - steady-state frame time and active pixel ratio;
 - correctness: missing geometry, materials, textures, transforms, and semantics.
 
-Run at least five measured iterations after one warm-up and report median plus p95. Do not compare a CAD cold start with an STL warm start or a low-DPR canvas with a native-resolution canvas.
+The current harness runs two discarded warm-ups and seven measured iterations, then reports every sample, median, and p95. Do not compare a CAD cold start with an STL warm start or a low-DPR canvas with a native-resolution canvas.
 
 ## Performance budgets
 
@@ -75,9 +83,9 @@ CI enforces build success and behavior; bundle-size and model-corpus performance
 
 ## Planned work
 
-- public, redistributable format corpus with cold/warm measurements;
+- broader public, redistributable format corpus with cold/warm measurements;
 - automated bundle-size budgets;
-- progressive glTF/network intake;
+- progressive glTF scene assembly after streamed network intake;
 - point-cloud octree or spatial LOD;
 - cancellable worker jobs and transferable-buffer pooling;
 - optional mesh simplification with visible quality/error controls;

@@ -6,6 +6,10 @@
     "allowJs": true,
     "checkJs": false,
     "module": "ESNext",
+    "baseUrl": ".",
+    "paths": {
+      "@fast-3d-viewer/core": ["packages/core/src/index.ts"]
+    },
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
@@ -21,5 +25,5 @@
     "resolveJsonModule": true,
     "types": ["vite/client", "vitest/globals", "node"]
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "packages/*/src", "tsup.config.ts"]
 }

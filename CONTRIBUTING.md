@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for improving Fast 3D Viewer. Small, reproducible changes are easier to review and safer for people opening untrusted files.
+Thanks for improving Modern 3D Workbench. Small, reproducible changes are easier to review and safer for people opening untrusted files.
 
 ## Development setup
 

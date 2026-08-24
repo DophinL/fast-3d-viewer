@@ -13,7 +13,7 @@ function animatedTriangleGltf(): string {
   Buffer.from(translations.buffer).copy(bytes, 52);
 
   return JSON.stringify({
-    asset: { version: '2.0', generator: 'Fast 3D Viewer regression fixture' },
+    asset: { version: '2.0', generator: 'Modern 3D Workbench regression fixture' },
     buffers: [{ byteLength: bytes.byteLength, uri: `data:application/octet-stream;base64,${bytes.toString('base64')}` }],
     bufferViews: [
       { buffer: 0, byteOffset: 0, byteLength: 36, target: 34962 },
@@ -49,7 +49,7 @@ test('uses the fast glTF path and retains animation clips', async ({ page }) => 
   });
 
   await expect(page.locator('.viewport-badge')).toContainText('animated-triangle.gltf', { timeout: 20_000 });
-  await expect(page.getByText('Fast native loader', { exact: true })).toBeVisible();
+  await expect(page.getByText('Modern native loader', { exact: true })).toBeVisible();
   await expect(page.getByText('Animations').locator('..').getByText('1', { exact: true })).toBeVisible();
   const play = page.getByRole('button', { name: 'Play animation' });
   await expect(play).toBeVisible();

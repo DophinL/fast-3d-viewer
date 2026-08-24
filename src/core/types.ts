@@ -1,4 +1,7 @@
 import type { AnimationClip, Object3D } from 'three';
+import type { MeasurementKind, MeasurementPoint, MeasurementResult, MeasurementUnit } from './measurements';
+
+export type { MeasurementKind, MeasurementPoint, MeasurementResult, MeasurementUnit } from './measurements';
 
 export type LoadPhase =
   | 'idle'
@@ -14,6 +17,29 @@ export type IssueSeverity = 'error' | 'warning' | 'info' | 'pass';
 export type RenderMode = 'material' | 'matcap' | 'normals' | 'wireframe' | 'xray';
 export type ToneMappingMode = 'neutral' | 'aces' | 'agx' | 'linear';
 export type UpAxis = 'x' | 'y' | 'z';
+export type ViewerInteractionMode = 'select' | MeasurementKind | 'annotate';
+export type ClippingAxis = 'x' | 'y' | 'z';
+
+export interface ClippingSettings {
+  enabled: boolean;
+  axis: ClippingAxis;
+  position: number;
+  inverted: boolean;
+}
+
+export interface ModelAnnotation {
+  id: string;
+  label: string;
+  point: MeasurementPoint;
+  createdAt: string;
+}
+
+export interface MeasurementDraft {
+  result: MeasurementResult | null;
+  collected: number;
+  required: number;
+  unit: MeasurementUnit;
+}
 
 export interface LoadProgress {
   phase: LoadPhase;
@@ -147,7 +173,7 @@ export interface LoadedAsset {
   format: FormatDefinition;
   stats: AssetStats;
   issues: AssetIssue[];
-  parser: 'Fast native loader' | 'Native OCCT worker';
+  parser: 'Modern native loader' | 'Native OCCT worker';
   cleanup: () => void;
 }
 

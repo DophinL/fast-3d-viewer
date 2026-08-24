@@ -14,6 +14,7 @@ import {
   HemisphereLight,
   LinearToneMapping,
   Mesh,
+  MeshBasicMaterial,
   MeshMatcapMaterial,
   MeshNormalMaterial,
   MeshStandardMaterial,
@@ -22,9 +23,13 @@ import {
   Object3D,
   OrthographicCamera,
   PerspectiveCamera,
+  Plane,
+  Points,
+  Quaternion,
   Raycaster,
   Scene,
   SRGBColorSpace,
+  SphereGeometry,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -33,8 +38,19 @@ import {
   type AnimationClip,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { RendererTelemetry, ViewerSettings } from '../core/types';
+import type {
+  ClippingSettings,
+  MeasurementKind,
+  MeasurementPoint,
+  MeasurementResult,
+  ModelAnnotation,
+  RendererTelemetry,
+  ViewerInteractionMode,
+  ViewerSettings,
+} from '../core/types';
 import { DEFAULT_VIEWER_SETTINGS } from '../core/settings';
+import { MeasurementLayer } from './MeasurementLayer';
+import type { ModelTransformState, ViewerCameraState } from '../core/view-state';
 
 type MaterialOwner = Object3D & { isMesh?: boolean; material?: Material | Material[] };
 
@@ -55,14 +71,23 @@ export class ViewerEngine {
   private readonly ambient = new AmbientLight(0xe7e3d9, 0.4);
   private readonly keyLight = new DirectionalLight(0xfff2d2, 3.2);
   private readonly fillLight = new DirectionalLight(0xcad7dd, 1.3);
+  private readonly measurementLayer = new MeasurementLayer();
+  private readonly annotationLayer = new Group();
+  private readonly annotationGeometry = new SphereGeometry(1, 14, 9);
+  private readonly annotationMaterial = new MeshBasicMaterial({ color: 0x7ce7bf, depthTest: false });
+  private readonly clippingPlane = new Plane(new Vector3(1, 0, 0), 0);
   private readonly resizeObserver: ResizeObserver;
   private model: Object3D | null = null;
+  private originalTransform: { position: Vector3; quaternion: Quaternion; scale: Vector3 } | null = null;
+  private interactionMode: ViewerInteractionMode = 'select';
+  private clipping: ClippingSettings = { enabled: false, axis: 'x', position: 0.5, inverted: false };
   private mixer: AnimationMixer | null = null;
   private animationAction: AnimationAction | null = null;
   private animationPlaying = false;
   private boundsHelper: Box3Helper | null = null;
   private selectionHelper: Box3Helper | null = null;
   private originalMaterials = new Map<string, Material | Material[]>();
+  private pointCounts = new Map<string, number>();
   private wireframeMaterials = new Map<string, Material>();
   private readonly normalMaterial = new MeshNormalMaterial({ side: DoubleSide });
   private readonly matcapMaterial = new MeshMatcapMaterial({ color: 0xc5bdac, flatShading: false, side: DoubleSide });
@@ -81,6 +106,7 @@ export class ViewerEngine {
   private pendingPixelRatio: number | null = null;
   private onTelemetry?: (telemetry: RendererTelemetry) => void;
   private onSelection?: (object: Object3D | null) => void;
+  private onAnnotationPoint?: (point: MeasurementPoint) => void;
 
   constructor(container: HTMLElement, canvas: HTMLCanvasElement) {
     this.container = container;
@@ -95,6 +121,7 @@ export class ViewerEngine {
     });
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
+    this.renderer.localClippingEnabled = true;
     this.renderer.setClearColor(this.settings.background, 1);
     this.currentPixelRatio = Math.min(window.devicePixelRatio, 2);
     this.renderer.setPixelRatio(this.currentPixelRatio);
@@ -108,7 +135,8 @@ export class ViewerEngine {
     this.controls.addEventListener('end', this.handleControlEnd);
     this.controls.addEventListener('change', this.invalidate);
 
-    this.scene.add(this.stage, this.grid, this.axes, this.hemisphere, this.ambient, this.keyLight, this.fillLight);
+    this.annotationLayer.name = 'Annotation overlay';
+    this.scene.add(this.stage, this.grid, this.axes, this.measurementLayer.group, this.annotationLayer, this.hemisphere, this.ambient, this.keyLight, this.fillLight);
     this.keyLight.position.set(5, 8, 4);
     this.keyLight.castShadow = true;
     this.keyLight.shadow.mapSize.set(2048, 2048);
@@ -139,9 +167,22 @@ export class ViewerEngine {
     this.onSelection = listener;
   }
 
+  setMeasurementListener(listener: (result: MeasurementResult | null, collected: number, required: number) => void): void {
+    this.measurementLayer.setResultListener(listener);
+  }
+
+  setAnnotationPointListener(listener: (point: MeasurementPoint) => void): void {
+    this.onAnnotationPoint = listener;
+  }
+
   setModel(root: Object3D, animations: AnimationClip[] = []): void {
     this.clearModel();
     this.model = root;
+    this.originalTransform = {
+      position: root.position.clone(),
+      quaternion: root.quaternion.clone(),
+      scale: root.scale.clone(),
+    };
     this.stage.add(root);
     if (animations.length > 0) {
       this.mixer = new AnimationMixer(root);
@@ -149,13 +190,22 @@ export class ViewerEngine {
     }
     root.traverse((child) => {
       const mesh = child as Mesh;
-      if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      this.originalMaterials.set(mesh.uuid, mesh.material);
+      if (mesh.isMesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.originalMaterials.set(mesh.uuid, mesh.material);
+      }
+      const points = child as Points;
+      if (points.isPoints) {
+        const count = points.geometry.getAttribute('position')?.count ?? 0;
+        this.pointCounts.set(points.uuid, count);
+      }
     });
+    const bounds = new Box3().setFromObject(root);
+    this.measurementLayer.setMarkerScale(Math.max(bounds.getSize(new Vector3()).length() * 0.008, 0.00001));
     this.fitToView(false);
     this.applySettings(this.settings);
+    this.updateClippingPlane();
   }
 
   clearModel(): void {
@@ -168,6 +218,8 @@ export class ViewerEngine {
     this.mixer = null;
     this.animationAction = null;
     this.animationPlaying = false;
+    this.measurementLayer.clear();
+    this.clearAnnotations();
     if (this.model) {
       this.model.traverse((child) => {
         const owner = child as MaterialOwner;
@@ -179,7 +231,9 @@ export class ViewerEngine {
     this.wireframeMaterials.forEach((material) => material.dispose());
     this.wireframeMaterials.clear();
     this.model = null;
+    this.originalTransform = null;
     this.originalMaterials.clear();
+    this.pointCounts.clear();
     this.clearSelection();
     this.disposeHelper(this.boundsHelper);
     this.boundsHelper = null;
@@ -188,6 +242,126 @@ export class ViewerEngine {
 
   getModel(): Object3D | null {
     return this.model;
+  }
+
+  setInteractionMode(mode: ViewerInteractionMode): void {
+    this.interactionMode = mode;
+    this.measurementLayer.setKind(this.isMeasurementMode(mode) ? mode : null);
+    this.canvas.dataset.interactionMode = mode;
+    this.invalidate();
+  }
+
+  getInteractionMode(): ViewerInteractionMode {
+    return this.interactionMode;
+  }
+
+  clearMeasurement(): void {
+    this.measurementLayer.clear();
+    this.invalidate();
+  }
+
+  setAnnotations(annotations: readonly ModelAnnotation[]): void {
+    this.clearAnnotations();
+    if (!this.model) return;
+    const bounds = new Box3().setFromObject(this.model);
+    const scale = Math.max(bounds.getSize(new Vector3()).length() * 0.011, 0.00001);
+    for (const annotation of annotations) {
+      const marker = new Mesh(this.annotationGeometry, this.annotationMaterial);
+      marker.name = `Annotation: ${annotation.label}`;
+      marker.userData.annotationId = annotation.id;
+      marker.position.set(annotation.point.x, annotation.point.y, annotation.point.z);
+      marker.scale.setScalar(scale);
+      marker.renderOrder = 1001;
+      this.annotationLayer.add(marker);
+    }
+    this.invalidate();
+  }
+
+  setClipping(next: Partial<ClippingSettings>): ClippingSettings {
+    this.clipping = {
+      ...this.clipping,
+      ...next,
+      position: Math.min(1, Math.max(0, next.position ?? this.clipping.position)),
+    };
+    this.updateClippingPlane();
+    return { ...this.clipping };
+  }
+
+  getClipping(): ClippingSettings {
+    return { ...this.clipping };
+  }
+
+  getCameraState(): ViewerCameraState {
+    return {
+      projection: this.camera === this.orthographic ? 'orthographic' : 'perspective',
+      position: this.camera.position.toArray() as [number, number, number],
+      target: this.controls.target.toArray() as [number, number, number],
+      up: this.camera.up.toArray() as [number, number, number],
+      orthographicZoom: this.camera === this.orthographic ? this.orthographic.zoom : undefined,
+    };
+  }
+
+  applyCameraState(state: ViewerCameraState): void {
+    this.setProjection(state.projection);
+    this.camera.position.fromArray(state.position);
+    this.camera.up.fromArray(state.up);
+    this.controls.target.fromArray(state.target);
+    if (this.camera === this.orthographic && state.orthographicZoom) {
+      this.orthographic.zoom = state.orthographicZoom;
+      this.orthographic.updateProjectionMatrix();
+    }
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    this.invalidate();
+  }
+
+  getModelTransform(): ModelTransformState | null {
+    if (!this.model) return null;
+    return {
+      position: this.model.position.toArray() as [number, number, number],
+      quaternion: this.model.quaternion.toArray() as [number, number, number, number],
+      scale: this.model.scale.toArray() as [number, number, number],
+    };
+  }
+
+  applyModelTransform(state: ModelTransformState): void {
+    if (!this.model) return;
+    this.model.position.fromArray(state.position);
+    this.model.quaternion.fromArray(state.quaternion);
+    this.model.scale.fromArray(state.scale);
+    this.model.updateMatrixWorld(true);
+    this.refreshModelOverlays();
+  }
+
+  rotateModel(axis: 'x' | 'y' | 'z', degrees: number): void {
+    if (!this.model || !Number.isFinite(degrees)) return;
+    const box = new Box3().setFromObject(this.model);
+    const center = box.getCenter(new Vector3());
+    const direction = axis === 'x' ? new Vector3(1, 0, 0) : axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1);
+    const rotation = new Quaternion().setFromAxisAngle(direction, degrees * Math.PI / 180);
+    this.model.position.sub(center).applyQuaternion(rotation).add(center);
+    this.model.quaternion.premultiply(rotation);
+    this.model.updateMatrixWorld(true);
+    this.refreshModelOverlays();
+  }
+
+  placeModelOnGround(): void {
+    if (!this.model) return;
+    const box = new Box3().setFromObject(this.model);
+    if (box.isEmpty()) return;
+    this.model.position.y -= box.min.y;
+    this.model.updateMatrixWorld(true);
+    this.refreshModelOverlays();
+  }
+
+  resetModelTransform(): void {
+    if (!this.model || !this.originalTransform) return;
+    this.model.position.copy(this.originalTransform.position);
+    this.model.quaternion.copy(this.originalTransform.quaternion);
+    this.model.scale.copy(this.originalTransform.scale);
+    this.model.updateMatrixWorld(true);
+    this.refreshModelOverlays();
+    this.fitToView(true);
   }
 
   applySettings(next: Partial<ViewerSettings>): void {
@@ -398,6 +572,47 @@ export class ViewerEngine {
     this.axes.position.copy(this.grid.position);
   }
 
+  private refreshModelOverlays(): void {
+    if (!this.model) return;
+    const box = new Box3().setFromObject(this.model);
+    this.updateGround(box);
+    this.updateBoundsHelper();
+    this.updateClippingPlane();
+    this.measurementLayer.clear();
+    this.clearAnnotations();
+    this.invalidate();
+  }
+
+  private updateClippingPlane(): void {
+    if (!this.model || !this.clipping.enabled) {
+      this.renderer.clippingPlanes = [];
+      this.invalidate();
+      return;
+    }
+    const box = new Box3().setFromObject(this.model);
+    if (box.isEmpty()) return;
+    const { axis, position, inverted } = this.clipping;
+    const minimum = box.min[axis];
+    const maximum = box.max[axis];
+    const coordinate = minimum + (maximum - minimum) * position;
+    const normal = axis === 'x' ? new Vector3(1, 0, 0) : axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1);
+    if (inverted) normal.negate();
+    const point = new Vector3();
+    point[axis] = coordinate;
+    this.clippingPlane.setFromNormalAndCoplanarPoint(normal, point);
+    this.renderer.clippingPlanes = [this.clippingPlane];
+    this.invalidate();
+  }
+
+  private clearAnnotations(): void {
+    this.annotationLayer.clear();
+    this.invalidate();
+  }
+
+  private isMeasurementMode(mode: ViewerInteractionMode): mode is MeasurementKind {
+    return mode === 'distance' || mode === 'angle' || mode === 'radius';
+  }
+
   private clearSelection(): void {
     this.disposeHelper(this.selectionHelper);
     this.selectionHelper = null;
@@ -419,6 +634,16 @@ export class ViewerEngine {
     this.pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hit = this.raycaster.intersectObject(this.model, true)[0];
+    if (hit && this.isMeasurementMode(this.interactionMode)) {
+      this.measurementLayer.addPoint(hit.point);
+      this.invalidate();
+      return;
+    }
+    if (hit && this.interactionMode === 'annotate') {
+      this.onAnnotationPoint?.({ x: hit.point.x, y: hit.point.y, z: hit.point.z });
+      this.invalidate();
+      return;
+    }
     this.select(hit?.object ?? null);
   };
 
@@ -429,9 +654,28 @@ export class ViewerEngine {
     for (const material of Array.isArray(helper.material) ? helper.material : [helper.material]) material.dispose();
   }
 
+  private applyPointBudget(interacting: boolean): void {
+    if (!this.model) return;
+    const interactiveBudget = 250_000;
+    this.model.traverse((child) => {
+      const points = child as Points;
+      if (!points.isPoints) return;
+      const total = this.pointCounts.get(points.uuid) ?? points.geometry.getAttribute('position')?.count ?? 0;
+      points.geometry.setDrawRange(0, interacting && this.settings.adaptiveQuality ? Math.min(total, interactiveBudget) : total);
+    });
+  }
+
   private handleDoubleClick = (): void => this.fitToView(true);
-  private handleControlStart = (): void => { this.forceContinuous = true; this.invalidate(); };
-  private handleControlEnd = (): void => { this.forceContinuous = this.settings.autoRotate || this.animationPlaying; this.invalidate(); };
+  private handleControlStart = (): void => {
+    this.forceContinuous = true;
+    this.applyPointBudget(true);
+    this.invalidate();
+  };
+  private handleControlEnd = (): void => {
+    this.forceContinuous = this.settings.autoRotate || this.animationPlaying;
+    this.applyPointBudget(false);
+    this.invalidate();
+  };
   private handleContextLost = (event: Event): void => { event.preventDefault(); this.forceContinuous = false; };
   private handleContextRestored = (): void => { this.applySettings(this.settings); this.invalidate(); };
 
@@ -539,6 +783,9 @@ export class ViewerEngine {
     this.normalMaterial.dispose();
     this.matcapMaterial.dispose();
     this.xrayMaterial.dispose();
+    this.annotationMaterial.dispose();
+    this.annotationGeometry.dispose();
+    this.measurementLayer.dispose();
     this.renderer.dispose();
   }
 }

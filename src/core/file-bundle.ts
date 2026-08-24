@@ -7,6 +7,11 @@ const MAX_ARCHIVE_ENTRY_BYTES = 256 * 1024 * 1024;
 const MAX_ARCHIVE_EXPANDED_BYTES = 512 * 1024 * 1024;
 const MAX_REMOTE_BYTES = 256 * 1024 * 1024;
 
+export interface RemoteFetchProgress {
+  receivedBytes: number;
+  totalBytes: number | null;
+}
+
 type ArchiveWorkerResponse =
   | { ok: true; entries: Array<{ path: string; bytes: Uint8Array }>; fileCount: number; expandedBytes: number }
   | { ok: false; error: string };
@@ -151,7 +156,7 @@ export async function createFileBundle(files: Iterable<File>): Promise<FileBundl
   };
 }
 
-export async function fetchRemoteBundle(url: string, signal?: AbortSignal): Promise<FileBundle> {
+export async function fetchRemoteBundle(url: string, signal?: AbortSignal, onProgress?: (progress: RemoteFetchProgress) => void): Promise<FileBundle> {
   const parsed = new URL(url);
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Only HTTP and HTTPS model URLs are supported.');
   const response = await fetch(parsed.toString(), { mode: 'cors', signal });
@@ -173,11 +178,14 @@ export async function fetchRemoteBundle(url: string, signal?: AbortSignal): Prom
         throw new Error('The remote model exceeds the 256 MB interactive limit.');
       }
       chunks.push(value);
+      onProgress?.({ receivedBytes, totalBytes: declaredBytes > 0 ? declaredBytes : null });
     }
   } else {
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.byteLength > MAX_REMOTE_BYTES) throw new Error('The remote model exceeds the 256 MB interactive limit.');
     chunks.push(bytes);
+    receivedBytes = bytes.byteLength;
+    onProgress?.({ receivedBytes, totalBytes: declaredBytes > 0 ? declaredBytes : null });
   }
   let name = parsed.pathname.split('/').pop() || 'remote-model';
   try { name = decodeURIComponent(name); } catch { /* Preserve malformed-but-displayable URL text. */ }

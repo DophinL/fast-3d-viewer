@@ -15,7 +15,7 @@ test('keeps the landing page usable when WebGL cannot initialize', async ({ page
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /A 3D viewer/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /See the model/ })).toBeVisible();
   await expect(page.getByText('3D rendering is unavailable in this session.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open files' })).toBeVisible();
 });

@@ -1,10 +1,10 @@
-# Fast 3D Viewer
+# Modern 3D Workbench
 
 **A local-first 3D workbench that opens complete model packages, explains render cost, checks mesh health, repairs common defects, and exports a clean working copy.**
 
-[Live demo](https://dophinl.github.io/fast-3d-viewer/) · [Format matrix](docs/FORMAT_SUPPORT.md) · [Architecture](docs/ARCHITECTURE.md) · [Performance](docs/PERFORMANCE.md) · [Testing](TESTING.md)
+[Live demo](https://dophinl.github.io/fast-3d-viewer/) · [STL viewer](https://dophinl.github.io/fast-3d-viewer/stl-viewer/) · [GLB viewer](https://dophinl.github.io/fast-3d-viewer/glb-viewer/) · [Benchmark](https://dophinl.github.io/fast-3d-viewer/benchmark/) · [Format matrix](docs/FORMAT_SUPPORT.md) · [Architecture](docs/ARCHITECTURE.md)
 
-Fast 3D Viewer is designed for the moment after someone receives a model and before they trust it. It keeps files in the browser, renders on demand, exposes scene and GPU facts, runs topology work in a Web Worker, and makes repair an explicit copy-producing operation.
+Modern 3D Workbench is designed for the moment after someone receives a model and before they trust it. The repository and package slug remain `fast-3d-viewer` so existing links do not break. The product name no longer makes an unqualified speed claim.
 
 ## What makes it different
 
@@ -14,6 +14,8 @@ Fast 3D Viewer is designed for the moment after someone receives a model and bef
 - **Non-destructive local repair.** Remove invalid or duplicate faces, fill simple planar holes, regenerate normals, and optionally center geometry. The source is never overwritten.
 - **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to measured frame cadence, avoid synchronous acceleration builds during open, and lazy-load importers and exporters.
 - **A deliberate interface.** The workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
+- **Explicit model tools.** Measure distance, angle, and three-point radius; place local annotations; rotate an ambiguous model in 90° steps; place it on the ground; and inspect a non-destructive section plane.
+- **Portable view state.** Hosted models can be shared with camera, display, orientation, clipping, units, and annotations in the URL. Local models can export the same setup as a view manifest without pretending the source file is included.
 - **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD parser runtimes are version-pinned and served from the same origin under a strict script policy.
 
 ## Try it
@@ -31,13 +33,14 @@ The app is a static Vite build. No API keys, database, or server are required.
 
 ## Format coverage
 
-The registry currently exposes **24 format families** and 33 filename extensions.
+The registry currently exposes **26 format families** and 35 filename extensions.
 
 | Family | Formats |
 | --- | --- |
 | Web and interchange | glTF, GLB, OBJ + MTL, FBX, COLLADA, USDZ |
 | Manufacturing and mesh | STL, 3MF, AMF, PLY, OFF, VTK |
 | CAD | STEP, IGES, BREP, Rhino 3DM |
+| BIM | IFC2X3/IFC4 local tessellation; DotBIM `.bim` 1.0/1.1 geometry, transforms, colors, and attached properties |
 | Scenes and legacy | 3DS, VRML, LDraw, MagicaVoxel VOX, Quake II MD2, KMZ |
 | Point clouds | XYZ / XYZRGB, PCD, PLY |
 | Toolpaths | G-code |
@@ -55,6 +58,11 @@ Format support is not one boolean. Animation, materials, package companions, sem
 - Scene tree visibility controls and click selection
 - Animation discovery and asset statistics
 - Play and pause the first retained animation clip from the viewport toolbar
+- Distance, angle, and three-point radius measurement with an explicit unit assumption
+- Local point annotations with editable labels
+- X/Y/Z section plane with position and visible-side controls
+- X/Y/Z ±90° orientation correction, place-on-ground, and reset
+- Share links for CORS-enabled remote models and downloadable view manifests for local files
 
 ### Diagnose
 
@@ -87,23 +95,42 @@ Repair is intentionally conservative. It does not rebuild arbitrary self-interse
 
 Exports represent the parsed render scene. They are not semantic CAD conversion: STEP/IGES/BREP/3DM object properties may not survive a mesh-scene export.
 
-## Compared with Online3DViewer
+## Independence from Online3DViewer
 
-Fast 3D Viewer does **not** import or wrap Online3DViewer. The application has its own viewer lifecycle, format registry, file-package layer, diagnostics, repair, and export flows. It uses narrow, format-specific open-source dependencies such as Three.js example loaders, `rhino3dm`, and a direct `occt-import-js` worker adapter.
+Modern 3D Workbench does **not** import or wrap Online3DViewer. The application has its own viewer lifecycle, format registry, file-package layer, diagnostics, repair, measurement, clipping, view-state, SDK, and export flows. It uses narrow, format-specific open-source dependencies such as Three.js example loaders, `rhino3dm`, and a direct `occt-import-js` worker adapter.
 
-| Capability | Online3DViewer upstream | Fast 3D Viewer 0.1 |
-| --- | --- | --- |
-| Registered format families | 18 documented import families | 24 independently routed families |
-| Folder / multi-file / ZIP intake | Multiple inputs | Folder, multi-file, ZIP, normalized package index |
-| Topology diagnosis | Model validation hooks | Dedicated worker scan with quantitative findings |
-| Repair | No integrated repair workflow | Conservative local mesh repair creating a copy |
-| Render scheduling | Continuous viewer lifecycle | Render-on-demand plus adaptive DPR |
-| Picking acceleration | Standard scene raycast | `three-mesh-bvh` accelerated raycast |
-| Render/GPU inspection | Basic model information | Load/parse/GPU/draw-call/live renderer telemetry |
-| WebGL failure state | Implementation-dependent | Tested non-crashing compatibility state |
-| Export | 3DM, BIM, glTF, OBJ, OFF, STL, PLY | GLB, glTF, OBJ, STL, PLY, USDZ from render scene |
+| Capability | Modern 3D Workbench 0.2 |
+| --- | --- |
+| Format registry | 26 independently maintained format families; maturity varies by fixture depth |
+| Folder / multi-file / ZIP intake | Folder, multi-file, ZIP, normalized package index |
+| Topology diagnosis | Dedicated worker scan with quantitative findings |
+| Repair | Conservative local mesh repair creating a separate working copy |
+| Model tools | Distance, angle, radius, annotations, orientation correction, clipping |
+| Render scheduling | Render-on-demand, adaptive DPR, and interaction-time point budget |
+| Render/GPU inspection | Load/parse/GPU/draw-call/live renderer telemetry |
+| Developer integration | Core SDK, React package, Web Component, and URL-configurable embed |
+| Search routes | Static HTML entries for STL, GLB, OBJ, and STEP tasks |
+| Export | GLB, glTF, OBJ, STL, PLY, USDZ from the normalized render scene |
 
-This table describes product differences, not copied implementation and not a claim that every parser is universally faster or more accurate. CAD import uses a dedicated local OpenCascade worker adapter; benchmark results depend on the model, device, browser, and cache. Reproducible performance rules are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+This table describes this repository, not a claim that every parser is universally faster or more accurate than Online3DViewer. Reproducible measurements and comparison rules are in the [benchmark protocol](docs/BENCHMARK_PROTOCOL.md).
+
+## SDK and embed
+
+Three buildable packages live in `packages/`:
+
+- `@fast-3d-viewer/core` — browser API and independent viewer engine;
+- `@fast-3d-viewer/react` — typed React component and imperative handle;
+- `@fast-3d-viewer/web-component` — `<modern-3d-viewer>` custom element.
+
+```ts
+import { Modern3DViewer } from '@fast-3d-viewer/core';
+
+const viewer = new Modern3DViewer(document.querySelector('#viewer')!);
+await viewer.openUrl('https://assets.example.com/model.glb');
+viewer.setInteractionMode('distance');
+```
+
+The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.2 packages are buildable and dry-pack testable but have not yet been published to npm.
 
 ## Architecture
 
@@ -141,7 +168,7 @@ npm run build
 npm run test:e2e
 ```
 
-Unit tests cover the format registry, package normalization, archive safety, and scene inspection. Playwright covers real WebGL rendering, repair feedback, mobile controls, viewport containment, topology correctness, and the no-WebGL recovery state. CI runs on every push and pull request.
+Unit tests cover the format registry, package normalization, archive safety, scene inspection, measurement math, view-state serialization, and DotBIM parsing. Playwright covers real WebGL rendering, repair feedback, mobile controls, viewport containment, topology correctness, and the no-WebGL recovery state. CI runs on every push and pull request.
 
 ## Project status
 
@@ -149,9 +176,11 @@ This is an early public release. The workbench is useful today, but the compatib
 
 - ZIP entries are protected against absolute and parent-traversal paths; companion resolution still depends on each format's path conventions.
 - Interactive diagnostics intentionally stop above the configured triangle budget; repair is not streamed yet.
-- Point-cloud level of detail and progressive network loading are not implemented.
+- Point clouds use an interaction-time draw budget, not spatial or octree LOD. Remote downloads stream with byte progress and a hard cap, but model parsing still begins after the complete source arrives.
 - Export preserves the parsed render scene, not every source-format semantic.
 - WebGPU is not enabled; the current production renderer targets WebGL 2.
+- IFC now has a self-hosted Web-IFC route and a redistributable IFC4 fixture, but it is a tessellated element scene rather than a complete BIM relationship/property editor. FCStd is not registered; adding a suffix without a licensed fixture and semantic boundary is not considered support.
+- Share URLs reference hosted CORS-enabled models. The application does not upload a local file to make it shareable.
 
 Open an issue with a minimal redistributable fixture when a model fails. Format support improves fastest when a regression can be reproduced legally in CI.
 
@@ -163,8 +192,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Importers should include a small license
 
 Files are processed locally by the published app. URL imports are fetched directly by the browser and therefore depend on the remote server's CORS policy. Review [SECURITY.md](SECURITY.md) for archive limits, untrusted-model guidance, and private reporting.
 
-STEP/IGES/BREP and Rhino 3DM use version-pinned runtime files in `public/runtime`. Direct glTF Draco decoding is copied from the pinned Three.js dependency at build time. `SHA256SUMS` records reviewed CAD payloads, and the browser policy blocks third-party executable code. Remote URL import still contacts the model host selected by the user.
+STEP/IGES/BREP, IFC, and Rhino 3DM use version-pinned runtime files served from the application origin. Direct glTF Draco decoding is copied from the pinned Three.js dependency at build time. `SHA256SUMS` records reviewed CAD payloads, and the browser policy blocks third-party executable code. Remote URL import still contacts the model host selected by the user. SDK consumers must copy the decoder assets described in [`packages/core/README.md`](packages/core/README.md) into equivalent same-origin paths.
 
 ## License and attribution
 
-Fast 3D Viewer is MIT licensed. Third-party dependency attribution is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Modern 3D Workbench is MIT licensed. The repository and package slug remain `fast-3d-viewer`. Third-party dependency attribution is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
