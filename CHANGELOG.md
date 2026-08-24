@@ -9,7 +9,7 @@ All notable changes are documented here. The project follows semantic versioning
 - Local-first React and Three.js 3D workbench.
 - Folder, multi-file, URL, and ZIP package intake.
 - 27 registered format families spanning web, mesh, print, CAD, BIM, point cloud, scene, and toolpath data.
-- Lazy fast-path loaders plus the vendored Online3DViewer import backend.
+- Lazy fast-path loaders plus the official `online-3d-viewer` npm compatibility backend.
 - Animated glTF/GLB, FBX, and COLLADA fast paths with companion resolution and a compatibility fallback.
 - Render-on-demand, adaptive device pixel ratio, five render modes, standard views, bounded screenshots, and live telemetry.
 - Play/pause control for retained model animation clips.

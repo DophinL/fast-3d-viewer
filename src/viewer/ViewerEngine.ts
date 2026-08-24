@@ -78,6 +78,7 @@ export class ViewerEngine {
   private telemetryAt = 0;
   private lastTickAt = performance.now();
   private currentPixelRatio = 1;
+  private pendingPixelRatio: number | null = null;
   private onTelemetry?: (telemetry: RendererTelemetry) => void;
   private onSelection?: (object: Object3D | null) => void;
 
@@ -434,7 +435,7 @@ export class ViewerEngine {
   private handleContextLost = (event: Event): void => { event.preventDefault(); this.forceContinuous = false; };
   private handleContextRestored = (): void => { this.applySettings(this.settings); this.invalidate(); };
 
-  private resize = (): void => {
+  private resizeViewport = (): void => {
     const width = Math.max(this.container.clientWidth, 1);
     const height = Math.max(this.container.clientHeight, 1);
     this.renderer.setSize(width, height, false);
@@ -444,6 +445,10 @@ export class ViewerEngine {
     this.orthographic.left = -(orthoHeight * width / height) / 2;
     this.orthographic.right = (orthoHeight * width / height) / 2;
     this.orthographic.updateProjectionMatrix();
+  };
+
+  private resize = (): void => {
+    this.resizeViewport();
     this.invalidate();
   };
 
@@ -466,6 +471,12 @@ export class ViewerEngine {
       this.invalidated = true;
     }
     if (this.invalidated) {
+      if (this.pendingPixelRatio !== null) {
+        this.currentPixelRatio = this.pendingPixelRatio;
+        this.pendingPixelRatio = null;
+        this.renderer.setPixelRatio(this.currentPixelRatio);
+        this.resizeViewport();
+      }
       this.renderer.render(this.scene, this.camera);
       const frameTime = delta * 1000;
       this.invalidated = false;
@@ -487,9 +498,7 @@ export class ViewerEngine {
     if (average > 20 || frameTime > 35) next = Math.max(0.75, this.currentPixelRatio - 0.15);
     else if (average < 10 && this.frameSamples.length >= 60) next = Math.min(maximum, this.currentPixelRatio + 0.05);
     if (Math.abs(next - this.currentPixelRatio) >= 0.04) {
-      this.currentPixelRatio = next;
-      this.renderer.setPixelRatio(next);
-      this.resize();
+      this.pendingPixelRatio = next;
     }
   }
 

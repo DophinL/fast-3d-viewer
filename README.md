@@ -13,7 +13,7 @@ Fast 3D Viewer is designed for the moment after someone receives a model and bef
 - **Mesh health that is actionable.** Scan welded topology for boundaries, non-manifold edges, reversed adjacency, degenerate faces, duplicates, isolated faces, surface area, and closed volume.
 - **Non-destructive local repair.** Remove invalid or duplicate faces, fill simple planar holes, regenerate normals, and optionally center geometry. The source is never overwritten.
 - **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to measured frame cadence, avoid synchronous acceleration builds during open, and lazy-load importers and exporters.
-- **A deliberate interface.** The warm, technical workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
+- **A deliberate interface.** The workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
 - **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD/BIM parser runtimes are version-pinned and served from the same origin under a strict script policy.
 
 ## Try it
@@ -90,9 +90,9 @@ Exports represent the parsed render scene. They are not semantic CAD conversion:
 
 ## Compared with Online3DViewer
 
-Fast 3D Viewer includes the MIT-licensed [Online3DViewer](https://github.com/kovacsv/Online3DViewer) engine as a vendored import backend for its mature CAD/BIM/legacy coverage, then adds a separate workbench and fast-path loader layer around it.
+Fast 3D Viewer uses the official MIT-licensed [`online-3d-viewer`](https://www.npmjs.com/package/online-3d-viewer) package as a compatibility importer for selected CAD/BIM/legacy formats. Upstream source is not copied into the current repository tree. The workbench, renderer lifecycle, native fast paths, diagnostics, repair, and export flows are maintained here as independent code.
 
-| Capability | Online3DViewer 0.19 | Fast 3D Viewer 0.1 |
+| Capability | Online3DViewer upstream | Fast 3D Viewer 0.1 |
 | --- | --- | --- |
 | Registered format families | 18 documented import families | 27 registered families |
 | Folder / multi-file / ZIP intake | Multiple inputs | Folder, multi-file, ZIP, normalized package index |
@@ -116,8 +116,8 @@ files / folder / URL / ZIP
            │
      ┌─────┴──────────┐
      ▼                ▼
-fast-path loaders   vendored engine
-Three.js extras     CAD/BIM/legacy
+fast-path loaders   npm compatibility engine
+Three.js extras     selected CAD/BIM/legacy
      └─────┬──────────┘
            ▼
       normalized scene
@@ -148,7 +148,7 @@ Unit tests cover the format registry, package normalization, archive safety, and
 
 This is an early public release. The workbench is useful today, but the compatibility matrix needs more real-world fixtures, especially for vendor-specific CAD and BIM files. Known boundaries:
 
-- ZIP entries are protected against absolute and parent-traversal paths, but nested packages with duplicate basenames can still be ambiguous in the vendored backend.
+- ZIP entries are protected against absolute and parent-traversal paths, but nested packages with duplicate basenames can still be ambiguous in the compatibility backend.
 - Interactive diagnostics intentionally stop above the configured triangle budget; repair is not streamed yet.
 - Point-cloud level of detail and progressive network loading are not implemented.
 - Export preserves the parsed render scene, not every source-format semantic.
@@ -168,4 +168,4 @@ STEP/IGES/BREP, Rhino 3DM, IFC, and upstream Draco compatibility paths use the v
 
 ## License and attribution
 
-Fast 3D Viewer is MIT licensed. The vendored Online3DViewer source remains under its original MIT license and is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Fast 3D Viewer is MIT licensed. Third-party dependency attribution is documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,9 +1,10 @@
 # Third-party notices
 
-Fast 3D Viewer builds on the MIT-licensed parser and conversion engine from
-[Online3DViewer](https://github.com/kovacsv/Online3DViewer). The unmodified
-upstream snapshot is kept in `vendor/online3dviewer`, including its original
-license and history attribution through a git subtree merge.
+Fast 3D Viewer uses the MIT-licensed `online-3d-viewer` 0.18.0 npm package as a
+compatibility importer for selected CAD, BIM, and legacy formats. Upstream source
+is not vendored in the current repository tree. The application, viewer runtime,
+diagnostics, repair workflow, export workflow, and interface are independently
+implemented in this repository.
 
 The application also uses Three.js and other packages listed in `package.json`.
 Their licenses remain with their respective authors.

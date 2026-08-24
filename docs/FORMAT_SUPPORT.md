@@ -35,9 +35,9 @@ Support means the current importer recognizes the listed extension and can produ
 ## Route definitions
 
 - **Fast path:** a lazy Three.js example loader, optimized for direct scene creation.
-- **Coverage:** the vendored Online3DViewer importer family.
-- **CAD:** the vendored OpenCascade/WebAssembly conversion path.
-- **BIM:** the vendored IFC or DotBIM conversion path.
+- **Coverage:** the official `online-3d-viewer` npm importer family.
+- **CAD:** the self-hosted OpenCascade/WebAssembly conversion path used by the compatibility package.
+- **BIM:** the self-hosted IFC runtime or DotBIM conversion path used by the compatibility package.
 
 ## Package behavior
 

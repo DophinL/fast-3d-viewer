@@ -55,6 +55,19 @@ test('opens an XYZ point cloud without leaving the loading state stuck', async (
   await expect(page.locator('canvas')).toBeVisible();
 });
 
+test('opens STEP through the npm compatibility engine using same-origin runtimes', async ({ page }) => {
+  test.setTimeout(120_000);
+  const requests: string[] = [];
+  page.on('request', (request) => requests.push(request.url()));
+  await page.goto('/');
+  await page.locator('input[type="file"]').first().setInputFiles('node_modules/occt-import-js/test/testfiles/simple-basic-cube/cube.stp');
+
+  await expect(page.locator('.viewport-badge')).toContainText('cube.stp', { timeout: 60_000 });
+  await expect(page.getByText('Online3DViewer', { exact: false })).toBeVisible();
+  expect(requests.some((url) => url.includes('/runtime/occt/occt-import-js-worker.js'))).toBe(true);
+  expect(requests.some((url) => url.includes('cdn.jsdelivr.net'))).toBe(false);
+});
+
 test('blocks absolute network companions declared by a local model', async ({ page }) => {
   let trackerRequested = false;
   await page.route('https://tracker.example/**', async (route) => {

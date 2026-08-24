@@ -6,7 +6,7 @@ Fast 3D Viewer separates file intake, import, normalized scene behavior, renderi
 
 1. `DropZone` accepts local files, directories, ZIP archives, or an HTTPS URL.
 2. `file-bundle.ts` normalizes names, rejects unsafe archive paths, selects a likely primary file, and retains companion entries.
-3. `load-model.ts` chooses either a lazy Three.js fast path or the vendored Online3DViewer engine.
+3. `load-model.ts` chooses either a lazy Three.js fast path or the `online-3d-viewer` npm compatibility engine.
 4. Every importer returns a normalized Three.js scene plus parser ownership and cleanup behavior.
 5. `inspect.ts` walks the scene once to derive asset statistics and lightweight findings.
 6. `ViewerEngine` frames and renders the scene on demand.
@@ -32,7 +32,7 @@ Each entry retains a normalized relative path, extension, size, and origin. This
 
 Remote URL intake also retains the source directory as `remoteBaseUrl`, so relative glTF, FBX, and COLLADA companions resolve against the model's origin instead of the viewer's own URL. Every remote response still needs to allow browser CORS.
 
-The vendored backend currently resolves several companion types by basename. Packages containing different nested files with the same basename are therefore an acknowledged ambiguity. A future backend adapter should expose a path-preserving virtual filesystem rather than flattening those names.
+The compatibility backend currently resolves several companion types by basename. Packages containing different nested files with the same basename are therefore an acknowledged ambiguity. A future backend adapter should expose a path-preserving virtual filesystem rather than flattening those names.
 
 The production build copies Three.js Draco decoder assets into `dist/draco`. Compressed glTF decoding therefore stays on the same static origin and does not depend on a third-party decoder CDN.
 
@@ -43,7 +43,7 @@ The inherited CAD/BIM adapter lazy-loads version-pinned OpenCascade, Rhino, IFC,
 The format registry declares facts; it does not import parser code. `load-model.ts` routes at runtime:
 
 - **Fast path:** Three.js example loaders for selected web, scene, point-cloud, and toolpath formats. These branches are lazy chunks.
-- **Coverage path:** Online3DViewer for mature CAD, BIM, manufacturing, and legacy importers, including the OpenCascade WebAssembly path.
+- **Coverage path:** the official `online-3d-viewer` package for selected mature CAD, BIM, manufacturing, and legacy importers, including the OpenCascade WebAssembly path.
 
 Importer output is normalized to `Object3D`. Format semantics that do not exist in Three.js must be represented in `userData` or documented as lost. Merely displaying tessellated geometry does not prove that parametric history, IFC properties, units, constraints, or manufacturing metadata survived.
 

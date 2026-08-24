@@ -44,7 +44,7 @@ An importer is not complete when one sample renders. A contribution should:
 - document unsupported variants and semantic loss;
 - avoid putting parser code in the initial JavaScript chunk.
 
-If a mature parser already exists in the vendored Online3DViewer backend, prefer using it over adding a second large dependency.
+If a mature parser already exists in the `online-3d-viewer` compatibility package, prefer adapting that public API over copying its source or adding a second large dependency.
 
 ## Repair changes
 
@@ -76,4 +76,3 @@ docs(formats): clarify IFC semantic loss
 ```
 
 Describe the user-visible outcome, validation performed, fixture license, and remaining limitations in the pull request.
-

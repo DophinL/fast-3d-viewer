@@ -206,7 +206,7 @@ async function parseExtra(bundle: FileBundle, onProgress: ProgressCallback): Pro
 
 async function parseUpstream(bundle: FileBundle, onProgress: ProgressCallback): Promise<ParsedScene> {
   update(onProgress, 'parsing', 0.28, 'Starting format engine');
-  const engine = await import('../../vendor/online3dviewer/source/engine/main.js');
+  const engine = await import('online-3d-viewer');
   const loader = new engine.ThreeModelLoader();
   const settings = new engine.ImportSettings();
   const orderedFiles = [bundle.mainFile, ...bundle.entries.filter((entry) => entry !== bundle.mainFile)].map((entry) => entry.file);
