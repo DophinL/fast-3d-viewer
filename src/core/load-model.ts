@@ -16,7 +16,9 @@ import { buildAssetIssues, disposeObject, inspectAsset } from './inspect';
 import { parseDotBim } from './loaders/dotbim';
 import { parseIfc } from './loaders/ifc';
 import { runtimeAssetUrl } from './runtime-url';
-import type { FileBundle, LoadedAsset, LoadProgress } from './types';
+import { registerVrmAvatar, unregisterVrmAvatar } from './vrm-runtime';
+import type { AvatarMetadata, FileBundle, LoadedAsset, LoadProgress } from './types';
+import type { VRM } from '@pixiv/three-vrm';
 
 type ProgressCallback = (progress: LoadProgress) => void;
 
@@ -24,6 +26,7 @@ interface ParsedScene {
   root: Object3D;
   animations: AnimationClip[];
   parser: LoadedAsset['parser'];
+  avatar?: AvatarMetadata;
   cleanup?: () => void;
 }
 
@@ -101,6 +104,31 @@ function createPackageManager(bundle: FileBundle): { manager: LoadingManager; cl
 function meshMaterial(color?: [number, number, number]): MeshStandardMaterial {
   const base = color ? new Color(color[0], color[1], color[2]) : new Color(0xb9b4a8);
   return new MeshStandardMaterial({ color: base, roughness: 0.68, metalness: 0.04 });
+}
+
+function describeVrm(avatar: VRM): AvatarMetadata {
+  const boneCount = Object.keys(avatar.humanoid.humanBones).length;
+  const expressions = avatar.expressionManager?.expressions.length ?? 0;
+  if (avatar.meta.metaVersion === '1') {
+    return {
+      specVersion: '1.0',
+      name: avatar.meta.name,
+      authors: avatar.meta.authors,
+      license: avatar.meta.licenseUrl,
+      humanoidBones: boneCount,
+      expressions,
+      springBones: Boolean(avatar.springBoneManager),
+    };
+  }
+  return {
+    specVersion: '0.x',
+    name: avatar.meta.title || 'Untitled VRM avatar',
+    authors: avatar.meta.author ? [avatar.meta.author] : [],
+    license: avatar.meta.otherLicenseUrl || avatar.meta.licenseName || 'Unspecified',
+    humanoidBones: boneCount,
+    expressions,
+    springBones: Boolean(avatar.springBoneManager),
+  };
 }
 
 function parseOff(source: string): Object3D {
@@ -187,19 +215,49 @@ async function parseNative(bundle: FileBundle, onProgress: ProgressCallback): Pr
   const extension = bundle.mainFile.extension;
   update(onProgress, 'parsing', 0.35, `Parsing ${extension.toUpperCase()}`);
 
-  if (extension === 'gltf' || extension === 'glb') {
+  if (extension === 'gltf' || extension === 'glb' || extension === 'vrm') {
     const resources = createPackageManager(bundle);
+    let disposeDraco: (() => void) | undefined;
     try {
       const [{ GLTFLoader }, { DRACOLoader }, { MeshoptDecoder }] = await Promise.all([
         import('three/examples/jsm/loaders/GLTFLoader.js'), import('three/examples/jsm/loaders/DRACOLoader.js'), import('three/examples/jsm/libs/meshopt_decoder.module.js'),
       ]);
       const draco = new DRACOLoader(resources.manager);
+      disposeDraco = () => draco.dispose();
       draco.setDecoderPath(runtimeAssetUrl('draco/').toString());
       const loader = new GLTFLoader(resources.manager).setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
-      const input = extension === 'glb' ? await readBuffer(file) : await readText(file);
+      let avatarTools: typeof import('@pixiv/three-vrm') | undefined;
+      if (extension === 'vrm') {
+        avatarTools = await import('@pixiv/three-vrm');
+        loader.register((parser) => new avatarTools!.VRMLoaderPlugin(parser));
+      }
+      const input = extension === 'gltf' ? await readText(file) : await readBuffer(file);
       const parsed = await new Promise<Awaited<ReturnType<typeof loader.parseAsync>>>((resolve, reject) => loader.parse(input, '', resolve, reject));
-      return { root: parsed.scene, animations: parsed.animations, parser: 'Modern native loader', cleanup: () => { resources.cleanup(); draco.dispose(); } };
-    } catch (error) { resources.cleanup(); throw error; }
+      if (extension === 'vrm') {
+        const avatar = parsed.userData.vrm as VRM | undefined;
+        if (!avatar || !avatarTools) {
+          disposeObject(parsed.scene);
+          throw new Error('This .vrm file does not contain a valid VRM 0.x or VRM 1.0 avatar extension.');
+        }
+        avatarTools.VRMUtils.rotateVRM0(avatar);
+        avatarTools.VRMUtils.removeUnnecessaryVertices(avatar.scene);
+        registerVrmAvatar(avatar.scene, avatar);
+        const metadata = describeVrm(avatar);
+        avatar.scene.name = metadata.name;
+        return {
+          root: avatar.scene,
+          animations: parsed.animations,
+          parser: 'VRM avatar loader',
+          avatar: metadata,
+          cleanup: () => {
+            unregisterVrmAvatar(avatar.scene);
+            resources.cleanup();
+            disposeDraco?.();
+          },
+        };
+      }
+      return { root: parsed.scene, animations: parsed.animations, parser: 'Modern native loader', cleanup: () => { resources.cleanup(); disposeDraco?.(); } };
+    } catch (error) { resources.cleanup(); disposeDraco?.(); throw error; }
   }
 
   if (extension === 'obj') {
@@ -368,6 +426,7 @@ export async function loadModel(bundle: FileBundle, onProgress: ProgressCallback
     stats,
     issues,
     parser: parsed.parser,
+    avatar: parsed.avatar,
     cleanup: () => { disposeObject(parsed.root); parsed.cleanup?.(); },
   };
 }

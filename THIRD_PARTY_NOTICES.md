@@ -4,6 +4,11 @@ Modern 3D Workbench does not import or redistribute Online3DViewer. The applicat
 uses Three.js and other focused packages listed in `package.json`.
 Their licenses remain with their respective authors.
 
+VRM avatar parsing uses `@pixiv/three-vrm` 3.5.5 from the pixiv VRM project
+(https://github.com/pixiv/three-vrm), licensed under MIT. It is a focused Three.js
+loader/runtime plugin, not a complete viewer or a compatibility layer around
+Online3DViewer.
+
 The independent `.bim` parser follows the public DotBIM 1.0/1.1 file-format
 specification maintained at https://github.com/paireks/dotbim (MIT). It does
 not import the DotBIM reference libraries or Online3DViewer parser code.

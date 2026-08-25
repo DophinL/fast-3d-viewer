@@ -3,6 +3,7 @@ import { createFileBundle, fetchRemoteBundle } from '../../../src/core/file-bund
 import { loadModel } from '../../../src/core/load-model';
 import type {
   ClippingSettings,
+  AvatarMetadata,
   LoadedAsset,
   LoadProgress,
   MeasurementPoint,
@@ -16,6 +17,7 @@ import { ViewerEngine } from '../../../src/viewer/ViewerEngine';
 
 export type {
   ClippingSettings,
+  AvatarMetadata,
   LoadedAsset,
   LoadProgress,
   MeasurementPoint,
@@ -81,7 +83,7 @@ export class Modern3DViewer {
     this.assertActive();
     const list = [...files];
     if (list.some((file) => file.name.toLowerCase().endsWith('.zip'))) {
-      throw new Error('ZIP packages require the optional SDK archive worker, which is not part of the 0.2.0 core bundle. Pass extracted package files instead.');
+      throw new Error('ZIP packages require the optional SDK archive worker, which is not part of the 0.3.0 core bundle. Pass extracted package files instead.');
     }
     return this.openBundle(createFileBundle(list));
   }
@@ -164,3 +166,4 @@ export { ViewerEngine } from '../../../src/viewer/ViewerEngine';
 export { FORMAT_DEFINITIONS, SUPPORTED_EXTENSIONS, findFormat, getAcceptValue, isSupportedFile } from '../../../src/core/formats';
 export { createFileBundle, fetchRemoteBundle } from '../../../src/core/file-bundle';
 export { loadModel } from '../../../src/core/load-model';
+export { getVrmAvatar } from '../../../src/core/vrm-runtime';

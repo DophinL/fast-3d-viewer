@@ -1,6 +1,6 @@
 {
   "name": "@fast-3d-viewer/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Browser SDK for Modern 3D Workbench",
   "license": "MIT",
   "type": "module",
@@ -11,5 +11,5 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.cjs" } },
   "files": ["dist", "README.md"],
   "peerDependencies": { "three": ">=0.176.0 <1" },
-  "dependencies": { "fflate": "0.8.3", "rhino3dm": "8.17.0", "web-ifc": "0.0.77" }
+  "dependencies": { "@pixiv/three-vrm": "3.5.5", "fflate": "0.8.3", "rhino3dm": "8.17.0", "web-ifc": "0.0.77" }
 }

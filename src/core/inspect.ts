@@ -155,7 +155,7 @@ export function buildAssetIssues(stats: AssetStats): AssetIssue[] {
   if (stats.textures > 0 && !stats.hasUV) {
     issues.push({ code: 'texture-no-uv', severity: 'warning', title: 'Textures without UV coordinates', detail: 'Image textures were found but the geometry has no primary UV channel.', fix: 'Unwrap UVs or switch to a mapping method that does not require them.' });
   }
-  if (['gltf', 'glb', 'fbx', 'obj', 'dae', 'usdz'].includes(stats.format) && stats.textures === 0) {
+  if (['gltf', 'glb', 'vrm', 'fbx', 'obj', 'dae', 'usdz'].includes(stats.format) && stats.textures === 0) {
     issues.push({ code: 'no-textures', severity: 'info', title: 'No image textures detected', detail: 'The model may be a white model, use vertex colors, or be missing companion images.', fix: 'Add the texture folder or inspect material values.' });
   }
   if (stats.meshes > 0 && !stats.hasNormals) {

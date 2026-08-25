@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   Triangle,
+  UserRound,
   Wrench,
   XCircle,
 } from 'lucide-react';
@@ -125,6 +126,19 @@ function ScenePanel({ asset, selection, telemetry, onChange }: Pick<InspectorPro
           <Stat label="Bones" value={stats.bones} />
         </div>
       </Section>
+      {asset.avatar && (
+        <Section title="Avatar profile" icon={<UserRound />}>
+          <div className="stat-table">
+            <Stat label="Name" value={asset.avatar.name} />
+            <Stat label="VRM version" value={asset.avatar.specVersion} />
+            <Stat label="Authors" value={asset.avatar.authors.join(', ') || 'Unspecified'} />
+            <Stat label="Humanoid bones" value={asset.avatar.humanoidBones} />
+            <Stat label="Expressions" value={asset.avatar.expressions} />
+            <Stat label="Spring bones" value={asset.avatar.springBones ? 'Yes' : 'No'} />
+            <Stat label="License" value={asset.avatar.license} />
+          </div>
+        </Section>
+      )}
       <Section title="Scene graph" icon={<Package />} initial={false}>
         <SceneTree root={asset.root} onChange={onChange} />
       </Section>

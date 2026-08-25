@@ -15,6 +15,7 @@ Modern 3D Workbench is designed for the moment after someone receives a model an
 - **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to measured frame cadence, avoid synchronous acceleration builds during open, and lazy-load importers and exporters.
 - **A deliberate interface.** The workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
 - **Explicit model tools.** Measure distance, angle, and three-point radius; place local annotations; rotate an ambiguous model in 90° steps; place it on the ground; and inspect a non-destructive section plane.
+- **Avatar-aware VRM viewing.** Open VRM 0.x and 1.0 avatars with normalized forward orientation, humanoid rigs, MToon materials, expressions, constraints, spring-bone updates, retained clips, and visible license metadata.
 - **Portable view state.** Hosted models can be shared with camera, display, orientation, clipping, units, and annotations in the URL. Local models can export the same setup as a view manifest without pretending the source file is included.
 - **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD parser runtimes are version-pinned and served from the same origin under a strict script policy.
 
@@ -33,11 +34,11 @@ The app is a static Vite build. No API keys, database, or server are required.
 
 ## Format coverage
 
-The registry currently exposes **26 format families** and 35 filename extensions.
+The registry currently exposes **27 format families** and 36 filename extensions.
 
 | Family | Formats |
 | --- | --- |
-| Web and interchange | glTF, GLB, OBJ + MTL, FBX, COLLADA, USDZ |
+| Web and interchange | glTF, GLB, VRM 0.x/1.0 avatars, OBJ + MTL, FBX, COLLADA, USDZ |
 | Manufacturing and mesh | STL, 3MF, AMF, PLY, OFF, VTK |
 | CAD | STEP, IGES, BREP, Rhino 3DM |
 | BIM | IFC2X3/IFC4 local tessellation; DotBIM `.bim` 1.0/1.1 geometry, transforms, colors, and attached properties |
@@ -99,9 +100,9 @@ Exports represent the parsed render scene. They are not semantic CAD conversion:
 
 Modern 3D Workbench does **not** import or wrap Online3DViewer. The application has its own viewer lifecycle, format registry, file-package layer, diagnostics, repair, measurement, clipping, view-state, SDK, and export flows. It uses narrow, format-specific open-source dependencies such as Three.js example loaders, `rhino3dm`, and a direct `occt-import-js` worker adapter.
 
-| Capability | Modern 3D Workbench 0.2 |
+| Capability | Modern 3D Workbench 0.3 |
 | --- | --- |
-| Format registry | 26 independently maintained format families; maturity varies by fixture depth |
+| Format registry | 27 independently maintained format families; maturity varies by fixture depth |
 | Folder / multi-file / ZIP intake | Folder, multi-file, ZIP, normalized package index |
 | Topology diagnosis | Dedicated worker scan with quantitative findings |
 | Repair | Conservative local mesh repair creating a separate working copy |
@@ -130,7 +131,7 @@ await viewer.openUrl('https://assets.example.com/model.glb');
 viewer.setInteractionMode('distance');
 ```
 
-The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.2 packages are buildable and dry-pack testable but have not yet been published to npm.
+The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.3 packages are buildable and dry-pack testable but have not yet been published to npm.
 
 ## Architecture
 
@@ -168,7 +169,7 @@ npm run build
 npm run test:e2e
 ```
 
-Unit tests cover the format registry, package normalization, archive safety, scene inspection, measurement math, view-state serialization, and DotBIM parsing. Playwright covers real WebGL rendering, repair feedback, mobile controls, viewport containment, topology correctness, and the no-WebGL recovery state. CI runs on every push and pull request.
+Unit tests cover the format registry, package normalization, archive safety, scene inspection, measurement math, view-state serialization, and DotBIM parsing. Playwright covers real WebGL rendering, VRM 0.x/1.0 fixture loading, repair feedback, mobile controls, viewport containment, topology correctness, and the no-WebGL recovery state. CI runs on every push and pull request.
 
 ## Project status
 

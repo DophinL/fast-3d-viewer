@@ -37,6 +37,8 @@ Package-aware native loaders resolve companions through a path-preserving virtua
 
 The production build copies Three.js Draco decoder assets into `dist/draco`. Compressed glTF decoding therefore stays on the same static origin and does not depend on a third-party decoder CDN.
 
+VRM shares the binary glTF transport but has a separate registry entry and parser contract. The VRM branch lazily registers `VRMLoaderPlugin`, rejects binary glTF files without a valid VRM extension, normalizes VRM 0.x forward orientation, retains avatar metadata, and registers the parsed avatar in a weak runtime map. This keeps ordinary glTF loads free of the VRM chunk.
+
 The CAD adapter calls the version-pinned OpenCascade worker from `public/runtime` on the application origin. Rhino uses its dedicated loader and same-origin runtime. This keeps large kernels out of the initial page load while the Content Security Policy blocks third-party scripts and workers.
 
 ## Loader ownership
@@ -46,6 +48,7 @@ The format registry declares facts; it does not import parser code. `load-model.
 - **Native route:** focused Three.js example loaders or small local adapters for web, mesh, scene, point-cloud, and toolpath formats. Heavy branches are lazy chunks.
 - **CAD route:** a direct, same-origin `occt-import-js` worker adapter for STEP, IGES, and BREP.
 - **BIM routes:** an independent DotBIM 1.0/1.1 parser plus a self-hosted Web-IFC geometry adapter. DotBIM retains attached info; IFC retains express ID, GUID, type, and name on tessellated element groups.
+- **Avatar route:** the focused `@pixiv/three-vrm` plugin layered onto `GLTFLoader`, with explicit VRM 0.x/1.0 fixture coverage and avatar-specific cleanup ownership.
 
 The repository deliberately does not import another complete viewer as a compatibility layer. A format is registered only when its dedicated route and browser-level fixture are maintainable here.
 
@@ -61,12 +64,13 @@ Importer output is normalized to `Object3D`. Format semantics that do not exist 
 - adaptive device pixel ratio;
 - selection and bounded, render-on-demand camera interaction;
 - animation mixer updates;
+- VRM humanoid, expression, constraint, material, and spring-bone updates;
 - display modes and temporary materials;
 - telemetry and cleanup.
 - explicit model transforms, measurement overlay, local annotations, and a global section plane;
 - interaction-time point draw budgets for dense point geometries.
 
-React owns controls and state, not individual frame rendering. A scene change calls `invalidate`; a small animation loop exists only while controls, auto-rotation, or model animation require it.
+React owns controls and state, not individual frame rendering. A scene change calls `invalidate`; a small animation loop exists only while controls, auto-rotation, model animation, or a VRM runtime requires it. VRM must receive delta-time updates even when no glTF clip is playing because secondary motion and node constraints are independent of the animation mixer.
 
 ## Inspection and diagnostics
 
@@ -110,4 +114,4 @@ Keep it opt-in, non-destructive, measurable, cancellable when possible, and pair
 
 ### Embedding
 
-`packages/core` exposes `Modern3DViewer` and the independent engine. `packages/react` and `packages/web-component` provide framework adapters. `/embed/` is a static URL-configured application surface. The 0.2 package API is buildable but not yet published to npm. Its README documents the same-origin runtime-asset contract for IFC, CAD, Draco, and Rhino; publishing still requires package-consumer browser fixtures and a final decision on whether ZIP support belongs in core or an optional adapter.
+`packages/core` exposes `Modern3DViewer`, the independent engine, typed avatar metadata, and `getVrmAvatar` for advanced expression or humanoid control. `packages/react` and `packages/web-component` provide framework adapters. `/embed/` is a static URL-configured application surface. The 0.3 package API is buildable but not yet published to npm. Its README documents the same-origin runtime-asset contract for IFC, CAD, Draco, and Rhino; publishing still requires package-consumer browser fixtures and a final decision on whether ZIP support belongs in core or an optional adapter.
