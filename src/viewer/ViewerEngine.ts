@@ -9,6 +9,7 @@ import {
   Color,
   DirectionalLight,
   DoubleSide,
+  Euler,
   GridHelper,
   Group,
   HemisphereLight,
@@ -37,6 +38,7 @@ import {
   type AnimationAction,
   type AnimationClip,
 } from 'three';
+import type { VRM, VRMHumanBoneName as VRMHumanBoneNameType } from '@pixiv/three-vrm';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type {
   ClippingSettings,
@@ -47,6 +49,7 @@ import type {
   RendererTelemetry,
   ViewerInteractionMode,
   ViewerSettings,
+  AvatarPosePreset,
 } from '../core/types';
 import { DEFAULT_VIEWER_SETTINGS } from '../core/settings';
 import { getVrmAvatar } from '../core/vrm-runtime';
@@ -54,6 +57,16 @@ import { MeasurementLayer } from './MeasurementLayer';
 import type { ModelTransformState, ViewerCameraState } from '../core/view-state';
 
 type MaterialOwner = Object3D & { isMesh?: boolean; material?: Material | Material[] };
+
+const VRM_BONES = {
+  leftUpperArm: 'leftUpperArm',
+  rightUpperArm: 'rightUpperArm',
+  leftLowerArm: 'leftLowerArm',
+  rightLowerArm: 'rightLowerArm',
+  spine: 'spine',
+  chest: 'chest',
+  head: 'head',
+} as const satisfies Record<string, VRMHumanBoneNameType>;
 
 export class ViewerEngine {
   private readonly container: HTMLElement;
@@ -86,6 +99,14 @@ export class ViewerEngine {
   private animationAction: AnimationAction | null = null;
   private animationPlaying = false;
   private runtimeUpdate: ((delta: number) => void) | null = null;
+  private avatar: VRM | null = null;
+  private avatarAutoBlink = true;
+  private avatarIdleMotion = true;
+  private avatarLookAtCamera = true;
+  private avatarElapsed = 0;
+  private avatarBlinkElapsed = 0;
+  private avatarNextBlink = 2.4;
+  private avatarIdleBases = new Map<string, Quaternion>();
   private boundsHelper: Box3Helper | null = null;
   private selectionHelper: Box3Helper | null = null;
   private originalMaterials = new Map<string, Material | Material[]>();
@@ -187,7 +208,12 @@ export class ViewerEngine {
     };
     this.stage.add(root);
     const avatar = getVrmAvatar(root);
-    this.runtimeUpdate = avatar ? (delta) => avatar.update(delta) : null;
+    this.avatar = avatar ?? null;
+    this.runtimeUpdate = avatar ? this.updateAvatarRuntime : null;
+    if (avatar) {
+      this.setAvatarPose('camera');
+      this.setAvatarLookAtCamera(true);
+    }
     if (animations.length > 0) {
       this.mixer = new AnimationMixer(root);
       this.animationAction = this.mixer.clipAction(animations[0]!);
@@ -223,6 +249,9 @@ export class ViewerEngine {
     this.animationAction = null;
     this.animationPlaying = false;
     this.runtimeUpdate = null;
+    if (this.avatar?.lookAt) this.avatar.lookAt.target = null;
+    this.avatar = null;
+    this.avatarIdleBases.clear();
     this.measurementLayer.clear();
     this.clearAnnotations();
     if (this.model) {
@@ -248,6 +277,89 @@ export class ViewerEngine {
 
   getModel(): Object3D | null {
     return this.model;
+  }
+
+  setAvatarExpression(name: string | null): void {
+    const manager = this.avatar?.expressionManager;
+    if (!manager) return;
+    manager.resetValues();
+    if (name && manager.getExpression(name)) manager.setValue(name, 1);
+    this.avatarBlinkElapsed = 0;
+    this.avatarNextBlink = 2.4;
+    this.invalidate();
+  }
+
+  setAvatarAutoBlink(enabled: boolean): void {
+    this.avatarAutoBlink = enabled;
+    if (!enabled) this.avatar?.expressionManager?.setValue('blink', 0);
+    this.invalidate();
+  }
+
+  setAvatarIdleMotion(enabled: boolean): void {
+    this.avatarIdleMotion = enabled;
+    if (!enabled) this.restoreAvatarIdlePose();
+    this.invalidate();
+  }
+
+  setAvatarLookAtCamera(enabled: boolean): void {
+    this.avatarLookAtCamera = enabled;
+    if (this.avatar?.lookAt) {
+      this.avatar.lookAt.autoUpdate = enabled;
+      this.avatar.lookAt.target = enabled ? this.camera : null;
+      if (!enabled) this.avatar.lookAt.reset();
+    }
+    this.invalidate();
+  }
+
+  setAvatarPose(preset: AvatarPosePreset): void {
+    const humanoid = this.avatar?.humanoid;
+    if (!humanoid) return;
+    humanoid.resetNormalizedPose();
+    const leftUpperArm = humanoid.getNormalizedBoneNode(VRM_BONES.leftUpperArm);
+    const rightUpperArm = humanoid.getNormalizedBoneNode(VRM_BONES.rightUpperArm);
+    const leftLowerArm = humanoid.getNormalizedBoneNode(VRM_BONES.leftLowerArm);
+    const rightLowerArm = humanoid.getNormalizedBoneNode(VRM_BONES.rightLowerArm);
+    const spine = humanoid.getNormalizedBoneNode(VRM_BONES.spine);
+    if (preset === 'camera') {
+      if (leftUpperArm) leftUpperArm.rotation.z = 1.16;
+      if (rightUpperArm) rightUpperArm.rotation.z = -1.16;
+      if (leftLowerArm) leftLowerArm.rotation.y = -0.08;
+      if (rightLowerArm) rightLowerArm.rotation.y = 0.08;
+    } else if (preset === 'wave') {
+      if (leftUpperArm) leftUpperArm.rotation.z = 1.16;
+      if (rightUpperArm) rightUpperArm.rotation.z = 0.62;
+      if (rightUpperArm) rightUpperArm.rotation.y = -0.22;
+      if (rightLowerArm) rightLowerArm.rotation.z = 1.25;
+      if (rightLowerArm) rightLowerArm.rotation.y = 0.28;
+      if (spine) spine.rotation.y = -0.06;
+    } else {
+      if (leftUpperArm) leftUpperArm.rotation.z = 0.18;
+      if (leftUpperArm) leftUpperArm.rotation.y = 0.18;
+      if (leftLowerArm) leftLowerArm.rotation.z = -0.55;
+      if (rightUpperArm) rightUpperArm.rotation.z = -1.16;
+      if (spine) spine.rotation.y = 0.08;
+    }
+    this.captureAvatarIdlePose();
+    this.invalidate();
+  }
+
+  frameAvatar(): void {
+    if (!this.model || !this.avatar) return;
+    const box = new Box3().setFromObject(this.model);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new Vector3());
+    const center = box.getCenter(new Vector3());
+    const target = new Vector3(center.x, box.min.y + size.y * 0.56, center.z);
+    // Presenter poses can extend a hand above the head. Frame almost the full
+    // animated bounds so a wave reads as a gesture instead of a cropped arm.
+    const visibleHeight = size.y * 0.94;
+    const distance = visibleHeight / (2 * Math.tan((this.perspective.fov * Math.PI) / 360));
+    this.setProjection('perspective');
+    this.camera.position.set(target.x, target.y + size.y * 0.03, box.max.z + distance * 1.08);
+    this.controls.target.copy(target);
+    this.camera.lookAt(target);
+    this.controls.update();
+    this.invalidate();
   }
 
   setInteractionMode(mode: ViewerInteractionMode): void {
@@ -430,6 +542,7 @@ export class ViewerEngine {
       this.camera = this.orthographic;
     }
     this.controls.object = this.camera;
+    if (this.avatarLookAtCamera && this.avatar?.lookAt) this.avatar.lookAt.target = this.camera;
     this.camera.lookAt(this.controls.target);
     this.resize();
   }
@@ -684,6 +797,65 @@ export class ViewerEngine {
   };
   private handleContextLost = (event: Event): void => { event.preventDefault(); this.forceContinuous = false; };
   private handleContextRestored = (): void => { this.applySettings(this.settings); this.invalidate(); };
+
+  private captureAvatarIdlePose(): void {
+    this.avatarIdleBases.clear();
+    const humanoid = this.avatar?.humanoid;
+    if (!humanoid) return;
+    for (const boneName of [VRM_BONES.spine, VRM_BONES.chest, VRM_BONES.head]) {
+      const bone = humanoid.getNormalizedBoneNode(boneName);
+      if (bone) this.avatarIdleBases.set(boneName, bone.quaternion.clone());
+    }
+  }
+
+  private restoreAvatarIdlePose(): void {
+    const humanoid = this.avatar?.humanoid;
+    if (!humanoid) return;
+    this.avatarIdleBases.forEach((quaternion, boneName) => {
+      humanoid.getNormalizedBoneNode(boneName as VRMHumanBoneNameType)?.quaternion.copy(quaternion);
+    });
+  }
+
+  private updateAvatarRuntime = (delta: number): void => {
+    const avatar = this.avatar;
+    if (!avatar) return;
+    this.avatarElapsed += delta;
+    const manager = avatar.expressionManager;
+    if (manager?.getExpression('blink')) {
+      if (this.avatarAutoBlink) {
+        this.avatarBlinkElapsed += delta;
+        const blinkDuration = 0.18;
+        if (this.avatarBlinkElapsed >= this.avatarNextBlink) {
+          const blinkTime = this.avatarBlinkElapsed - this.avatarNextBlink;
+          const weight = blinkTime <= blinkDuration
+            ? Math.sin(Math.min(blinkTime / blinkDuration, 1) * Math.PI)
+            : 0;
+          manager.setValue('blink', weight);
+          if (blinkTime > blinkDuration) {
+            this.avatarBlinkElapsed = 0;
+            this.avatarNextBlink = 2.6 + Math.random() * 2.8;
+          }
+        }
+      } else {
+        manager.setValue('blink', 0);
+      }
+    }
+    if (this.avatarIdleMotion) {
+      const humanoid = avatar.humanoid;
+      const breath = Math.sin(this.avatarElapsed * 1.25);
+      const sway = Math.sin(this.avatarElapsed * 0.52);
+      const applyOffset = (boneName: string, x: number, y: number, z: number) => {
+        const bone = humanoid.getNormalizedBoneNode(boneName as VRMHumanBoneNameType);
+        const base = this.avatarIdleBases.get(boneName);
+        if (!bone || !base) return;
+        bone.quaternion.copy(base).multiply(new Quaternion().setFromEuler(new Euler(x, y, z, 'XYZ')));
+      };
+      applyOffset(VRM_BONES.spine, breath * 0.009, sway * 0.012, sway * 0.004);
+      applyOffset(VRM_BONES.chest, breath * 0.006, -sway * 0.008, 0);
+      applyOffset(VRM_BONES.head, -breath * 0.004, sway * 0.016, -sway * 0.004);
+    }
+    avatar.update(delta);
+  };
 
   private needsContinuousRendering(): boolean {
     return this.settings.autoRotate || this.animationPlaying || Boolean(this.runtimeUpdate);

@@ -4,7 +4,7 @@ export const REPOSITORY_NAME = 'fast-3d-viewer';
 export const REPOSITORY_URL = 'https://github.com/DophinL/fast-3d-viewer';
 export const PUBLIC_ORIGIN = 'https://dophinl.github.io/fast-3d-viewer';
 
-export type ProductRouteId = 'home' | 'stl' | 'glb' | 'obj' | 'step' | 'embed' | 'benchmark';
+export type ProductRouteId = 'home' | 'stl' | 'glb' | 'obj' | 'step' | 'vrm' | 'embed' | 'benchmark';
 
 export interface ProductFaq {
   question: string;
@@ -138,6 +138,28 @@ export const PRODUCT_ROUTES: readonly ProductRoute[] = Object.freeze([
       { question: 'Does this repair STEP or convert semantic CAD?', answer: 'No. It tessellates CAD for local visualization. Mesh export does not preserve constraints, feature history, or all object properties.' },
       { question: 'Is the CAD file sent to a conversion API?', answer: 'No. The OpenCascade worker and WebAssembly runtime are served with the application and execute in your browser.' },
       { question: 'Why can large STEP files take time?', answer: 'CAD tessellation is CPU and memory intensive. The worker keeps the interface responsive, but it does not remove the cost of parsing and meshing a large assembly.' },
+    ],
+  },
+  {
+    id: 'vrm',
+    path: '/vrm-viewer/',
+    title: 'VRM Viewer Online · Preview a virtual host in your browser',
+    description: 'Open a VRM avatar locally and preview expressions, eye contact, blinking, presenter poses, spring bones, humanoid mapping, and model permissions.',
+    eyebrow: 'VRM VIRTUAL HOST STUDIO',
+    headline: 'Meet the avatar.',
+    emphasizedHeadline: 'Direct the host.',
+    introduction: 'Preview a recognizable virtual presenter, not a test triangle. Check the face, eye contact, body language, spring motion, humanoid rig, and embedded usage terms before the avatar goes live.',
+    primaryAction: 'Meet the demo host',
+    formats: ['VRM 1.0', 'VRM 0.x', 'GLB', 'glTF', 'FBX'],
+    workflow: [
+      { title: 'Open a VRM avatar', detail: 'Drop a VRM 1.0 or legacy VRM 0.x file. The avatar stays in this browser and opens with its humanoid and license metadata.' },
+      { title: 'Direct a camera test', detail: 'Try expressions, natural blinking, eye contact, idle motion, and presenter poses without installing Unity or a streaming app.' },
+      { title: 'Inspect before broadcast', detail: 'Review materials, textures, bones, spring bones, render cost, scene structure, and embedded model permissions.' },
+    ],
+    faqs: [
+      { question: 'Does this turn the browser into a complete VTuber studio?', answer: 'No. It is a fast avatar preview and QA studio. Webcam tracking, lip sync, voice synthesis, recording, and live-stream output are separate production capabilities.' },
+      { question: 'Is the demo host free to redistribute?', answer: 'Yes. The demo is an optimized AvatarSample_B model from VRoid Project. Its embedded terms allow use by everyone, corporate commercial use, modification, and redistribution; the source and terms are recorded in the repository.' },
+      { question: 'Are my VRM files uploaded?', answer: 'No. Files you open from your device are parsed and rendered locally. The built-in demo is fetched from this same website only when you open the VRM page or choose the demo.' },
     ],
   },
   {

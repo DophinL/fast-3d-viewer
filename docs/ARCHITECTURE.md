@@ -48,7 +48,7 @@ The format registry declares facts; it does not import parser code. `load-model.
 - **Native route:** focused Three.js example loaders or small local adapters for web, mesh, scene, point-cloud, and toolpath formats. Heavy branches are lazy chunks.
 - **CAD route:** a direct, same-origin `occt-import-js` worker adapter for STEP, IGES, and BREP.
 - **BIM routes:** an independent DotBIM 1.0/1.1 parser plus a self-hosted Web-IFC geometry adapter. DotBIM retains attached info; IFC retains express ID, GUID, type, and name on tessellated element groups.
-- **Avatar route:** the focused `@pixiv/three-vrm` plugin layered onto `GLTFLoader`, with explicit VRM 0.x/1.0 fixture coverage and avatar-specific cleanup ownership.
+- **Avatar route:** the focused `@pixiv/three-vrm` plugin layered onto `GLTFLoader`, with explicit VRM 0.x/1.0 fixture coverage, avatar-specific cleanup ownership, and engine-level presenter controls. `/vrm-viewer/` loads a pinned same-origin demo model whose source, checksum, permissions, and texture-only optimization are documented separately from the application code.
 
 The repository deliberately does not import another complete viewer as a compatibility layer. A format is registered only when its dedicated route and browser-level fixture are maintainable here.
 
@@ -114,4 +114,4 @@ Keep it opt-in, non-destructive, measurable, cancellable when possible, and pair
 
 ### Embedding
 
-`packages/core` exposes `Modern3DViewer`, the independent engine, typed avatar metadata, and `getVrmAvatar` for advanced expression or humanoid control. `packages/react` and `packages/web-component` provide framework adapters. `/embed/` is a static URL-configured application surface. The 0.3 package API is buildable but not yet published to npm. Its README documents the same-origin runtime-asset contract for IFC, CAD, Draco, and Rhino; publishing still requires package-consumer browser fixtures and a final decision on whether ZIP support belongs in core or an optional adapter.
+`packages/core` exposes `Modern3DViewer`, the independent engine, typed avatar metadata, avatar expression/pose/gaze/framing methods, and `getVrmAvatar` for lower-level humanoid control. `packages/react` and `packages/web-component` provide framework adapters. `/embed/` is a static URL-configured application surface. The 0.4 package API is buildable but not yet published to npm. Its README documents the same-origin runtime-asset contract for IFC, CAD, Draco, and Rhino; publishing still requires package-consumer browser fixtures and a final decision on whether ZIP support belongs in core or an optional adapter.

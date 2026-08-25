@@ -53,6 +53,7 @@ export default defineConfig({
         glbViewer: resolve('glb-viewer/index.html'),
         objViewer: resolve('obj-viewer/index.html'),
         stepFileViewer: resolve('step-file-viewer/index.html'),
+        vrmViewer: resolve('vrm-viewer/index.html'),
         embed: resolve('embed/index.html'),
         benchmark: resolve('benchmark/index.html'),
       },

@@ -3,6 +3,7 @@ import { createFileBundle, fetchRemoteBundle } from '../../../src/core/file-bund
 import { loadModel } from '../../../src/core/load-model';
 import type {
   ClippingSettings,
+  AvatarPosePreset,
   AvatarMetadata,
   LoadedAsset,
   LoadProgress,
@@ -17,6 +18,7 @@ import { ViewerEngine } from '../../../src/viewer/ViewerEngine';
 
 export type {
   ClippingSettings,
+  AvatarPosePreset,
   AvatarMetadata,
   LoadedAsset,
   LoadProgress,
@@ -83,7 +85,7 @@ export class Modern3DViewer {
     this.assertActive();
     const list = [...files];
     if (list.some((file) => file.name.toLowerCase().endsWith('.zip'))) {
-      throw new Error('ZIP packages require the optional SDK archive worker, which is not part of the 0.3.0 core bundle. Pass extracted package files instead.');
+      throw new Error('ZIP packages require the optional SDK archive worker, which is not part of the 0.4.0 core bundle. Pass extracted package files instead.');
     }
     return this.openBundle(createFileBundle(list));
   }
