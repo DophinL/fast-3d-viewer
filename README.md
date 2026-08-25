@@ -2,7 +2,7 @@
 
 **A local-first 3D workbench that opens complete model packages, explains render cost, checks mesh health, repairs common defects, and exports a clean working copy.**
 
-[Live demo](https://dophinl.github.io/fast-3d-viewer/) · [STL viewer](https://dophinl.github.io/fast-3d-viewer/stl-viewer/) · [GLB viewer](https://dophinl.github.io/fast-3d-viewer/glb-viewer/) · [Benchmark](https://dophinl.github.io/fast-3d-viewer/benchmark/) · [Format matrix](docs/FORMAT_SUPPORT.md) · [Architecture](docs/ARCHITECTURE.md)
+[Live demo](https://dophinl.github.io/fast-3d-viewer/) · [VRM virtual host](https://dophinl.github.io/fast-3d-viewer/vrm-viewer/) · [STL viewer](https://dophinl.github.io/fast-3d-viewer/stl-viewer/) · [GLB viewer](https://dophinl.github.io/fast-3d-viewer/glb-viewer/) · [Benchmark](https://dophinl.github.io/fast-3d-viewer/benchmark/) · [Format matrix](docs/FORMAT_SUPPORT.md) · [Architecture](docs/ARCHITECTURE.md)
 
 Modern 3D Workbench is designed for the moment after someone receives a model and before they trust it. The repository and package slug remain `fast-3d-viewer` so existing links do not break. The product name no longer makes an unqualified speed claim.
 
@@ -15,13 +15,15 @@ Modern 3D Workbench is designed for the moment after someone receives a model an
 - **Interaction-first rendering.** Render only when the scene changes, adapt pixel ratio to measured frame cadence, avoid synchronous acceleration builds during open, and lazy-load importers and exporters.
 - **A deliberate interface.** The workbench stays useful on narrow screens and presents a clear WebGL recovery state instead of crashing to a blank page.
 - **Explicit model tools.** Measure distance, angle, and three-point radius; place local annotations; rotate an ambiguous model in 90° steps; place it on the ground; and inspect a non-destructive section plane.
-- **Avatar-aware VRM viewing.** Open VRM 0.x and 1.0 avatars with normalized forward orientation, humanoid rigs, MToon materials, expressions, constraints, spring-bone updates, retained clips, and visible license metadata.
+- **A recognizable VRM virtual host.** Open VRM 0.x and 1.0 avatars, then try facial expressions, camera eye contact, natural blinking, idle motion, presenter poses, humanoid rigs, spring bones, and visible license metadata. The public VRM route opens with a licensed human character instead of a synthetic geometry fixture.
 - **Portable view state.** Hosted models can be shared with camera, display, orientation, clipping, units, and annotations in the URL. Local models can export the same setup as a view manifest without pretending the source file is included.
 - **No model-upload path.** Parsing, inspection, diagnosis, repair, screenshots, and exports happen in the browser. CAD parser runtimes are version-pinned and served from the same origin under a strict script policy.
 
 ## Try it
 
 Open the [GitHub Pages demo](https://dophinl.github.io/fast-3d-viewer/) and use the built-in calibration model, or drop your own files. Current Chrome and Edge releases with WebGL 2 are recommended and CI-gated. Firefox and Safari compatibility is intended but not yet part of the automated browser matrix.
+
+For avatars, open the dedicated [VRM virtual host studio](https://dophinl.github.io/fast-3d-viewer/vrm-viewer/). Its same-origin demo model is an optimized VRoid Project sample with pinned source, checksum, redistribution terms, and browser tests. It is a preview and QA surface, not a claim of webcam tracking, lip sync, recording, or live-stream output.
 
 ```bash
 git clone https://github.com/DophinL/fast-3d-viewer.git
@@ -100,7 +102,7 @@ Exports represent the parsed render scene. They are not semantic CAD conversion:
 
 Modern 3D Workbench does **not** import or wrap Online3DViewer. The application has its own viewer lifecycle, format registry, file-package layer, diagnostics, repair, measurement, clipping, view-state, SDK, and export flows. It uses narrow, format-specific open-source dependencies such as Three.js example loaders, `rhino3dm`, and a direct `occt-import-js` worker adapter.
 
-| Capability | Modern 3D Workbench 0.3 |
+| Capability | Modern 3D Workbench 0.4 |
 | --- | --- |
 | Format registry | 27 independently maintained format families; maturity varies by fixture depth |
 | Folder / multi-file / ZIP intake | Folder, multi-file, ZIP, normalized package index |
@@ -110,7 +112,7 @@ Modern 3D Workbench does **not** import or wrap Online3DViewer. The application 
 | Render scheduling | Render-on-demand, adaptive DPR, and interaction-time point budget |
 | Render/GPU inspection | Load/parse/GPU/draw-call/live renderer telemetry |
 | Developer integration | Core SDK, React package, Web Component, and URL-configurable embed |
-| Search routes | Static HTML entries for STL, GLB, OBJ, and STEP tasks |
+| Search routes | Static HTML entries for VRM, STL, GLB, OBJ, and STEP tasks |
 | Export | GLB, glTF, OBJ, STL, PLY, USDZ from the normalized render scene |
 
 This table describes this repository, not a claim that every parser is universally faster or more accurate than Online3DViewer. Reproducible measurements and comparison rules are in the [benchmark protocol](docs/BENCHMARK_PROTOCOL.md).
@@ -131,7 +133,7 @@ await viewer.openUrl('https://assets.example.com/model.glb');
 viewer.setInteractionMode('distance');
 ```
 
-The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.3 packages are buildable and dry-pack testable but have not yet been published to npm.
+The static embed route accepts `model`/`src`, `grid`, `shadows`, `autorotate`, `background`, and `controls` query parameters. Version 0.4 packages are buildable and dry-pack testable but have not yet been published to npm.
 
 ## Architecture
 
@@ -169,7 +171,7 @@ npm run build
 npm run test:e2e
 ```
 
-Unit tests cover the format registry, package normalization, archive safety, scene inspection, measurement math, view-state serialization, and DotBIM parsing. Playwright covers real WebGL rendering, VRM 0.x/1.0 fixture loading, repair feedback, mobile controls, viewport containment, topology correctness, and the no-WebGL recovery state. CI runs on every push and pull request.
+Unit tests cover the format registry, package normalization, archive safety, scene inspection, measurement math, view-state serialization, and DotBIM parsing. Playwright covers real WebGL rendering, the same-origin virtual-host demo, VRM expression and pose controls, VRM 0.x/1.0 fixture loading, repair feedback, mobile controls, viewport containment, topology correctness, and the no-WebGL recovery state. CI runs on every push and pull request.
 
 ## Project status
 

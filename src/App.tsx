@@ -57,7 +57,18 @@ import { ViewerToolbar } from './components/ViewerToolbar';
 import { ProductPageContent } from './components/ProductPageContent';
 import { ModelToolsPanel } from './components/ModelToolsPanel';
 import { BenchmarkPage } from './components/BenchmarkPage';
+import { AvatarStudioPanel } from './components/AvatarStudioPanel';
 import { useViewerEngine } from './hooks/useViewerEngine';
+
+function demoAvatarUrl(): string {
+  const path = '../demo/avatar-sample-b.vrm';
+  return new URL(path, import.meta.url).toString();
+}
+
+function vrmViewerUrl(): string {
+  const path = '../vrm-viewer/';
+  return new URL(path, import.meta.url).toString();
+}
 
 function downloadDataUrl(url: string, name: string): void {
   const anchor = document.createElement('a');
@@ -175,8 +186,9 @@ export function App() {
     setDiagnostics(completedDiagnostics);
     setRepairResult(completedRepair);
     setAnimationPlaying(false);
-    setInspectorOpen(true);
-  }, [engineRef]);
+    setInspectorOpen(!(next.avatar && route.id === 'vrm'));
+    if (next.avatar) window.requestAnimationFrame(() => engine?.frameAvatar());
+  }, [engineRef, route.id]);
 
   const loadBundle = useCallback(async (bundlePromise: ReturnType<typeof createFileBundle>, controller: AbortController | null = null) => {
     if (activeLoadAbort.current !== controller) activeLoadAbort.current?.abort();
@@ -207,9 +219,10 @@ export function App() {
       setProgress(null);
       return;
     }
-    window.setTimeout(() => {
-      if (generation === operationGeneration.current) setProgress(null);
-    }, 260);
+    // The loaded scene is already committed and interactive. Clear the blocking
+    // overlay synchronously so slow mobile GPUs never leave controls covered by
+    // a cosmetic hand-off delay.
+    if (generation === operationGeneration.current) setProgress(null);
     if (activeLoadAbort.current === controller) activeLoadAbort.current = null;
   }, [commitAsset]);
 
@@ -253,6 +266,10 @@ export function App() {
         pendingSharedState.current = shared;
         setRemoteSourceUrl(shared.modelUrl);
         openUrl(shared.modelUrl);
+        return;
+      }
+      if (route.id === 'vrm') {
+        openUrl(demoAvatarUrl());
         return;
       }
       if (route.id !== 'embed') return;
@@ -457,8 +474,13 @@ export function App() {
     engineRef.current?.applySettings({});
   };
 
+  const openRouteSample = () => {
+    if (route.id === 'vrm') openUrl(demoAvatarUrl());
+    else openFiles([createCalibrationSample()]);
+  };
+
   return (
-    <div className={`app-shell ${asset && !inspectorOpen ? 'inspector-collapsed' : ''} ${route.id === 'embed' ? 'app-shell--embed' : ''}`}>
+    <div className={`app-shell ${asset && !inspectorOpen ? 'inspector-collapsed' : ''} ${asset?.avatar ? 'app-shell--avatar' : ''} ${route.id === 'embed' ? 'app-shell--embed' : ''}`}>
       <header className="app-header">
         <a className="brand" href={import.meta.env.BASE_URL} aria-label={`${PRODUCT_NAME} home`}>
           <span className="brand__mark"><Boxes /></span>
@@ -466,6 +488,7 @@ export function App() {
         </a>
         <nav className={mobileMenu ? 'is-open' : ''} aria-label="Primary navigation">
           <button type="button" onClick={() => setFormatDrawer(true)}>Formats <span>{FORMAT_DEFINITIONS.length}</span></button>
+          <a href={vrmViewerUrl()}>VRM Studio</a>
           <a href="#capabilities">Capabilities</a>
           <a href={`${REPOSITORY_URL}#readme`} target="_blank" rel="noreferrer">Docs <ArrowUpRight /></a>
         </nav>
@@ -484,7 +507,7 @@ export function App() {
               <p className="eyebrow"><Zap /> {route.eyebrow}</p>
               <h1>{route.headline} <em>{route.emphasizedHeadline}</em></h1>
               <p>{route.introduction}</p>
-              <button type="button" className="sample-link" onClick={() => openFiles([createCalibrationSample()])}><Sparkles /> {route.primaryAction}</button>
+              <button type="button" className="sample-link" onClick={openRouteSample}><Sparkles /> {route.primaryAction}</button>
               {rendererError && <div className="compatibility-notice" role="status"><strong>3D rendering is unavailable in this session.</strong><span>Your files are untouched. Enable browser hardware acceleration or switch to a current browser, then reload.</span></div>}
             </div>
             <DropZone onFiles={openFiles} onUrl={openUrl} />
@@ -517,6 +540,7 @@ export function App() {
                 toolsOpen={toolsOpen}
                 onTools={() => setToolsOpen((value) => !value)}
               />}
+              {asset?.avatar && route.id !== 'embed' && <AvatarStudioPanel avatar={asset.avatar} engineRef={engineRef} demo={asset.stats.fileName === 'avatar-sample-b.vrm'} />}
               {asset && <ModelToolsPanel
                 engineRef={engineRef}
                 open={toolsOpen}

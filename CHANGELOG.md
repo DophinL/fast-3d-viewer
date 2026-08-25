@@ -2,6 +2,21 @@
 
 All notable changes are documented here. The project follows semantic versioning once the public API stabilizes.
 
+## 0.4.0 - 2026-08-25
+
+### Added
+
+- Add a dedicated, indexable `/vrm-viewer/` product page that opens with a recognizable, legally redistributable VRoid virtual host instead of a synthetic geometry fixture.
+- Add user-facing expression, natural blink, camera eye-contact, idle-motion, camera-framing, wave, and presenter-pose controls for loaded VRM avatars.
+- Add a pinned, checksum-verified avatar preparation script that downsizes large textures from the 28.3 MB source model to an 8.5 MB same-origin web demo while retaining VRM semantics.
+- Add desktop and mobile Chromium/WebGL acceptance coverage for the real demo route and same-origin avatar delivery.
+
+### Changed
+
+- Collapse engineering inspection chrome on the dedicated avatar route so the virtual host and directing controls lead the experience; the Inspector remains available on demand.
+- Expose avatar directing methods from the independent viewer engine for SDK consumers without importing a virtual-host application package.
+- Document the demo asset's source, model permissions, modification, checksum, and product boundary from full VTuber production tools.
+
 ## 0.3.0 - 2026-08-25
 
 ### Added

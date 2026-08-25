@@ -173,8 +173,11 @@ export interface AvatarMetadata {
   license: string;
   humanoidBones: number;
   expressions: number;
+  expressionNames: string[];
   springBones: boolean;
 }
+
+export type AvatarPosePreset = 'camera' | 'wave' | 'present';
 
 export interface LoadedAsset {
   root: Object3D;

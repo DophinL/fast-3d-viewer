@@ -11,7 +11,7 @@ await viewer.openUrl('https://assets.example.com/model.glb');
 viewer.fitToView();
 ```
 
-Version 0.3.0 supports extracted multi-file packages and VRM 0.x/1.0 avatars. ZIP loading in the SDK still requires a separately hosted archive worker; the full workbench application already includes that worker.
+Version 0.4.0 supports extracted multi-file packages and VRM 0.x/1.0 avatars. ZIP loading in the SDK still requires a separately hosted archive worker; the full workbench application already includes that worker.
 
 VRM loads return typed `asset.avatar` metadata. Advanced integrations can access the focused VRM runtime without coupling the general viewer API to avatar controls:
 
@@ -23,7 +23,7 @@ const avatar = getVrmAvatar(asset.root);
 avatar?.expressionManager?.setValue('happy', 1);
 ```
 
-The viewer engine calls `avatar.update(delta)` while the model is mounted, so humanoid normalization, expressions, constraints, materials, and spring bones stay current.
+The viewer engine calls `avatar.update(delta)` while the model is mounted, so humanoid normalization, expressions, constraints, materials, and spring bones stay current. It also exposes `setAvatarExpression`, `setAvatarPose`, `setAvatarLookAtCamera`, `setAvatarAutoBlink`, `setAvatarIdleMotion`, and `frameAvatar` for presenter-preview interfaces.
 
 ## Runtime assets
 

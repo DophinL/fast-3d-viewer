@@ -9,6 +9,15 @@ VRM avatar parsing uses `@pixiv/three-vrm` 3.5.5 from the pixiv VRM project
 loader/runtime plugin, not a complete viewer or a compatibility layer around
 Online3DViewer.
 
+The public VRM virtual-host demo redistributes an optimized copy of VRoid
+Studio's `AvatarSample_B` by VRoid Project. Its embedded model terms permit use
+by everyone, corporate commercial use, modification, and redistribution, with
+credit unnecessary. We still provide credit, pinned source, source checksum,
+and the official terms in `public/demo/README.md`. The only modification is
+downscaling embedded textures larger than 512 pixels for faster, lower-memory web preview;
+geometry, avatar metadata, expressions, humanoid mapping, and spring bones are
+retained.
+
 The independent `.bim` parser follows the public DotBIM 1.0/1.1 file-format
 specification maintained at https://github.com/paireks/dotbim (MIT). It does
 not import the DotBIM reference libraries or Online3DViewer parser code.

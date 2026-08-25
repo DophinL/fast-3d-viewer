@@ -1,7 +1,7 @@
 {
   "name": "fast-3d-viewer",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -12,6 +12,7 @@
     "build:app": "tsc -b && vite build",
     "build:sdk": "tsup --config tsup.config.ts",
     "benchmark:viewer": "node scripts/run-viewer-benchmark.mjs",
+    "prepare:vrm-demo": "node scripts/prepare-vrm-demo.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -39,10 +40,12 @@
     "@types/react-dom": "19.2.3",
     "@types/three": "0.176.0",
     "@vitejs/plugin-react": "6.1.0",
+    "esbuild": "0.28.2",
     "eslint": "9.39.2",
     "eslint-plugin-react-hooks": "7.0.1",
     "eslint-plugin-react-refresh": "0.4.24",
     "globals": "16.4.0",
+    "sharp": "0.35.3",
     "tsup": "^8.5.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.46.1",

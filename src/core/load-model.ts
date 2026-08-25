@@ -108,7 +108,8 @@ function meshMaterial(color?: [number, number, number]): MeshStandardMaterial {
 
 function describeVrm(avatar: VRM): AvatarMetadata {
   const boneCount = Object.keys(avatar.humanoid.humanBones).length;
-  const expressions = avatar.expressionManager?.expressions.length ?? 0;
+  const expressionNames = avatar.expressionManager?.expressions.map((expression) => expression.expressionName) ?? [];
+  const expressions = expressionNames.length;
   if (avatar.meta.metaVersion === '1') {
     return {
       specVersion: '1.0',
@@ -117,6 +118,7 @@ function describeVrm(avatar: VRM): AvatarMetadata {
       license: avatar.meta.licenseUrl,
       humanoidBones: boneCount,
       expressions,
+      expressionNames,
       springBones: Boolean(avatar.springBoneManager),
     };
   }
@@ -127,6 +129,7 @@ function describeVrm(avatar: VRM): AvatarMetadata {
     license: avatar.meta.otherLicenseUrl || avatar.meta.licenseName || 'Unspecified',
     humanoidBones: boneCount,
     expressions,
+    expressionNames,
     springBones: Boolean(avatar.springBoneManager),
   };
 }
