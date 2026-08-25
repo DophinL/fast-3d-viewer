@@ -49,6 +49,7 @@ import type {
   ViewerSettings,
 } from '../core/types';
 import { DEFAULT_VIEWER_SETTINGS } from '../core/settings';
+import { getVrmAvatar } from '../core/vrm-runtime';
 import { MeasurementLayer } from './MeasurementLayer';
 import type { ModelTransformState, ViewerCameraState } from '../core/view-state';
 
@@ -84,6 +85,7 @@ export class ViewerEngine {
   private mixer: AnimationMixer | null = null;
   private animationAction: AnimationAction | null = null;
   private animationPlaying = false;
+  private runtimeUpdate: ((delta: number) => void) | null = null;
   private boundsHelper: Box3Helper | null = null;
   private selectionHelper: Box3Helper | null = null;
   private originalMaterials = new Map<string, Material | Material[]>();
@@ -184,6 +186,8 @@ export class ViewerEngine {
       scale: root.scale.clone(),
     };
     this.stage.add(root);
+    const avatar = getVrmAvatar(root);
+    this.runtimeUpdate = avatar ? (delta) => avatar.update(delta) : null;
     if (animations.length > 0) {
       this.mixer = new AnimationMixer(root);
       this.animationAction = this.mixer.clipAction(animations[0]!);
@@ -218,6 +222,7 @@ export class ViewerEngine {
     this.mixer = null;
     this.animationAction = null;
     this.animationPlaying = false;
+    this.runtimeUpdate = null;
     this.measurementLayer.clear();
     this.clearAnnotations();
     if (this.model) {
@@ -237,6 +242,7 @@ export class ViewerEngine {
     this.clearSelection();
     this.disposeHelper(this.boundsHelper);
     this.boundsHelper = null;
+    this.forceContinuous = this.needsContinuousRendering();
     this.invalidate();
   }
 
@@ -370,7 +376,7 @@ export class ViewerEngine {
     this.axes.visible = this.settings.showAxes;
     this.controls.autoRotate = this.settings.autoRotate;
     this.controls.autoRotateSpeed = this.settings.autoRotateSpeed;
-    this.forceContinuous = this.settings.autoRotate || this.animationPlaying;
+    this.forceContinuous = this.needsContinuousRendering();
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.keyLight.intensity = this.settings.keyLightIntensity;
     this.hemisphere.intensity = 1.2 * this.settings.environmentIntensity;
@@ -401,7 +407,7 @@ export class ViewerEngine {
     } else {
       this.mixer.timeScale = 0;
     }
-    this.forceContinuous = this.settings.autoRotate || this.animationPlaying;
+    this.forceContinuous = this.needsContinuousRendering();
     this.invalidate();
     return this.animationPlaying;
   }
@@ -672,12 +678,16 @@ export class ViewerEngine {
     this.invalidate();
   };
   private handleControlEnd = (): void => {
-    this.forceContinuous = this.settings.autoRotate || this.animationPlaying;
+    this.forceContinuous = this.needsContinuousRendering();
     this.applyPointBudget(false);
     this.invalidate();
   };
   private handleContextLost = (event: Event): void => { event.preventDefault(); this.forceContinuous = false; };
   private handleContextRestored = (): void => { this.applySettings(this.settings); this.invalidate(); };
+
+  private needsContinuousRendering(): boolean {
+    return this.settings.autoRotate || this.animationPlaying || Boolean(this.runtimeUpdate);
+  }
 
   private resizeViewport = (): void => {
     const width = Math.max(this.container.clientWidth, 1);
@@ -712,6 +722,7 @@ export class ViewerEngine {
     if (this.forceContinuous) {
       this.controls.update(delta);
       if (this.animationPlaying && this.mixer) this.mixer.update(delta);
+      this.runtimeUpdate?.(delta);
       this.invalidated = true;
     }
     if (this.invalidated) {

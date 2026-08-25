@@ -2,6 +2,7 @@ import type { FormatDefinition } from './types';
 
 const formats: FormatDefinition[] = [
   { id: 'gltf', label: 'glTF / GLB', extensions: ['gltf', 'glb'], family: 'web', packageSupport: true, animations: true, materials: true, repair: true, loader: 'native', description: 'Modern web and interchange scenes, including external buffers and textures.' },
+  { id: 'vrm', label: 'VRM Avatar', extensions: ['vrm'], family: 'scene', packageSupport: false, animations: true, materials: true, repair: false, loader: 'native', description: 'VRM 0.x and 1.0 avatars with humanoid rigs, MToon materials, expressions, constraints, and spring bones.' },
   { id: 'obj', label: 'Wavefront OBJ', extensions: ['obj'], family: 'mesh', packageSupport: true, animations: false, materials: true, repair: true, loader: 'native', description: 'OBJ packages with MTL files and image textures.' },
   { id: 'fbx', label: 'Autodesk FBX', extensions: ['fbx'], family: 'scene', packageSupport: true, animations: true, materials: true, repair: true, loader: 'native', description: 'Binary and ASCII FBX scenes with skinning and animation.' },
   { id: 'stl', label: 'STL', extensions: ['stl'], family: 'print', packageSupport: false, animations: false, materials: false, repair: true, loader: 'native', description: 'Binary or ASCII triangle meshes with print diagnostics and local repair.' },

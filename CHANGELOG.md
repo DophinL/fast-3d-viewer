@@ -2,6 +2,21 @@
 
 All notable changes are documented here. The project follows semantic versioning once the public API stabilizes.
 
+## 0.3.0 - 2026-08-25
+
+### Added
+
+- Open VRM 0.x and VRM 1.0 avatars through the focused `@pixiv/three-vrm` loader plugin without importing another viewer.
+- Preserve humanoid rigs, MToon materials, expressions, node constraints, spring bones, and retained glTF animation clips.
+- Show avatar name, authors, VRM generation, license, humanoid-bone count, expression count, and spring-bone presence in the Inspector.
+- Cover both VRM generations with independently generated binary fixtures and real Chromium/WebGL tests.
+
+### Changed
+
+- Keep the render loop active while a VRM avatar is present so avatar constraints, expressions, materials, and secondary motion receive delta-time updates.
+- Normalize legacy VRM 0.x avatar orientation to the VRM 1.0 forward convention.
+- Expand the format registry to 27 format families and 36 filename extensions.
+
 ## 0.2.0 - 2026-08-25
 
 ### Added

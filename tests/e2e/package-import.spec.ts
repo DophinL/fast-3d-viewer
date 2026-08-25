@@ -105,7 +105,7 @@ test('blocks absolute network companions declared by a local model', async ({ pa
 
 test('shows the registered capability matrix without loading a model', async ({ page }) => {
   await page.goto('/');
-  const formatsButton = page.getByRole('button', { name: /Formats 26/i });
+  const formatsButton = page.getByRole('button', { name: /Formats 27/i });
   if (!(await formatsButton.isVisible())) {
     await page.getByRole('button', { name: 'Toggle menu' }).click();
   }

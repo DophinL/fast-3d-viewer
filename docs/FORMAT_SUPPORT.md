@@ -5,6 +5,7 @@ Support means the current importer recognizes the listed extension and can produ
 | Format | Extensions | Route | Package | Materials | Animation | Mesh repair | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | glTF / GLB | `.gltf`, `.glb` | Native | Yes | Yes | Yes | Yes | External buffers/textures, Meshopt, and same-origin Draco decoding. |
+| VRM Avatar | `.vrm` | Native | No | Yes | Yes | No | VRM 0.x and 1.0 humanoid rigs, MToon materials, expressions, constraints, spring bones, and retained glTF clips. Legacy forward orientation is normalized. Mesh repair is disabled to avoid silently destroying avatar semantics. |
 | Wavefront OBJ | `.obj` | Native | Yes | Yes | No | Yes | Include MTL and texture files or drop the whole folder/ZIP. |
 | Autodesk FBX | `.fbx` | Native | Yes | Yes | Yes | Yes | Binary and ASCII variants supported by the dedicated loader. |
 | STL | `.stl` | Native | No | No | No | Yes | Binary/ASCII; format has no standard unit metadata. |

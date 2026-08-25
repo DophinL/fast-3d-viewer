@@ -166,6 +166,16 @@ export interface RepairResult {
   warnings: string[];
 }
 
+export interface AvatarMetadata {
+  specVersion: '0.x' | '1.0';
+  name: string;
+  authors: string[];
+  license: string;
+  humanoidBones: number;
+  expressions: number;
+  springBones: boolean;
+}
+
 export interface LoadedAsset {
   root: Object3D;
   animations: AnimationClip[];
@@ -173,7 +183,8 @@ export interface LoadedAsset {
   format: FormatDefinition;
   stats: AssetStats;
   issues: AssetIssue[];
-  parser: 'Modern native loader' | 'Native OCCT worker';
+  parser: 'Modern native loader' | 'Native OCCT worker' | 'VRM avatar loader';
+  avatar?: AvatarMetadata;
   cleanup: () => void;
 }
 
