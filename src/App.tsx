@@ -70,6 +70,10 @@ function vrmViewerUrl(): string {
   return new URL(path, import.meta.url).toString();
 }
 
+function homeUrl(): string {
+  return new URL(/* @vite-ignore */ '../', import.meta.url).toString();
+}
+
 function downloadDataUrl(url: string, name: string): void {
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -482,7 +486,7 @@ export function App() {
   return (
     <div className={`app-shell ${asset && !inspectorOpen ? 'inspector-collapsed' : ''} ${asset?.avatar ? 'app-shell--avatar' : ''} ${route.id === 'embed' ? 'app-shell--embed' : ''}`}>
       <header className="app-header">
-        <a className="brand" href={import.meta.env.BASE_URL} aria-label={`${PRODUCT_NAME} home`}>
+        <a className="brand" href={homeUrl()} aria-label={`${PRODUCT_NAME} home`}>
           <span className="brand__mark"><Boxes /></span>
           <span><strong>{PRODUCT_SHORT_NAME}</strong><em>WORKBENCH</em></span>
         </a>

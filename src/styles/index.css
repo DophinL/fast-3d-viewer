@@ -758,12 +758,12 @@
     margin-block: 1.45rem 1.65rem;
   }
   .welcome-copy h1 em {
-    background: linear-gradient(100deg, var(--accent), oklch(78% .1 175));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--accent);
+    display: block;
     font-style: normal;
     font-weight: 590;
+    margin-top: .08em;
+    -webkit-text-fill-color: var(--accent);
   }
   .welcome-copy > p:not(.eyebrow) { color: var(--ink-2); font-size: clamp(.98rem, 1.15vw, 1.1rem); line-height: 1.72; max-width: 57ch; }
   .sample-link { color: var(--ink-1); font-family: var(--font-ui); font-size: .75rem; margin-top: 1.6rem; }
@@ -1085,8 +1085,11 @@
     .avatar-studio { bottom: 2.9rem; left: .6rem; max-height: min(18rem, calc(100% - 9rem)); width: min(18rem, calc(100% - 1.2rem)); }
   }
   @media (max-width: 520px) {
-    .welcome-copy h1 { font-size: clamp(3rem, 15vw, 4.5rem); }
-    .drop-zone { border-radius: 12px; min-height: 26rem; }
+    .welcome-copy h1 { font-size: clamp(2.75rem, 11.5vw, 3.25rem); letter-spacing: -.055em; line-height: .92; }
+    .drop-zone { border-radius: 12px; gap: 1rem; min-height: 22rem; }
+    .drop-zone__mark { height: 3.25rem; margin-top: 0; width: 3.25rem; }
+    .drop-zone__mark svg { height: 1.55rem; width: 1.55rem; }
+    .drop-zone__copy h1 { font-size: 2rem; margin-block: .7rem .55rem; }
     .capability-strip { grid-template-columns: 1fr; }
     .route-content { margin-top: 1rem; }
     .route-workflow li { grid-template-columns: 2rem minmax(0, 1fr); }
