@@ -26,6 +26,21 @@ test('serves independent task pages with route-specific metadata and content', a
   await expect(page.getByText(/STL does not define a universal front or up axis/)).toBeAttached();
 });
 
+test('returns to the product home from an independent viewer route', async ({ page }) => {
+  await page.goto('/vrm-viewer/');
+  const brand = page.getByRole('link', { name: 'Modern 3D Workbench home' });
+  const expectedHome = await page.evaluate(() => {
+    const entry = document.querySelector<HTMLScriptElement>('script[type="module"]');
+    if (!entry) throw new Error('Module entry script is missing');
+    return new URL('../', entry.src).toString();
+  });
+
+  await expect(brand).toHaveAttribute('href', expectedHome);
+  await brand.click();
+  await expect(page).toHaveURL(expectedHome);
+  await expect(page.locator('.welcome-copy h1')).toContainText('See the model');
+});
+
 test('opens an independently parsed DotBIM element scene', async ({ page }) => {
   const fixture = {
     schema_version: '1.1.0',
