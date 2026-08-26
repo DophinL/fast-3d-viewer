@@ -1,6 +1,23 @@
 import { Buffer } from 'node:buffer';
 import { expect, test } from '@playwright/test';
 
+test('renders the hero emphasis as text without an opaque gradient box', async ({ page }) => {
+  await page.goto('/');
+  const emphasis = page.locator('.welcome-copy h1 em');
+  await expect(emphasis).toBeVisible();
+  const style = await emphasis.evaluate((element) => {
+    const computed = window.getComputedStyle(element);
+    return {
+      backgroundImage: computed.backgroundImage,
+      color: computed.color,
+      textFillColor: computed.getPropertyValue('-webkit-text-fill-color'),
+    };
+  });
+  expect(style.backgroundImage).toBe('none');
+  expect(style.color).not.toBe('rgba(0, 0, 0, 0)');
+  expect(style.textFillColor).not.toBe('transparent');
+});
+
 test('serves independent task pages with route-specific metadata and content', async ({ page }) => {
   await page.goto('/stl-viewer/');
   await expect(page).toHaveTitle(/STL Viewer Online/);
